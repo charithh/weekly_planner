@@ -1,9 +1,13 @@
 // Global variable to track current week
 let currentWeekStart = null;
+let isFirebaseReady = false;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Initialize current week to today's week
     currentWeekStart = getWeekStart(new Date());
+    
+    // Initialize Firebase
+    await initializeFirebase();
     
     // Initialize the planner
     initializePlanner();
@@ -14,6 +18,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update week header with current date
     updateWeekHeader();
 });
+
+async function initializeFirebase() {
+    try {
+        // Wait for Firebase service to be available
+        let retries = 0;
+        while (!window.FirebaseService && retries < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+        }
+        
+        if (window.FirebaseService) {
+            isFirebaseReady = await window.FirebaseService.initFirebase();
+            if (isFirebaseReady) {
+                console.log('Firebase initialized successfully');
+            } else {
+                console.warn('Firebase initialization failed, using localStorage');
+            }
+        } else {
+            console.warn('Firebase service not available, using localStorage');
+        }
+    } catch (error) {
+        console.error('Error initializing Firebase:', error);
+        isFirebaseReady = false;
+    }
+}
 
 function initializePlanner() {
     // Auto-save functionality
@@ -263,7 +292,7 @@ function getWeekKey(weekStart) {
     return `week-${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`;
 }
 
-function saveToLocalStorage() {
+async function saveToFirestore() {
     const plannerData = {
         roles: [],
         sharpenData: [],
@@ -301,7 +330,13 @@ function saveToLocalStorage() {
     
     // Save data for current week
     const weekKey = getWeekKey(currentWeekStart);
-    localStorage.setItem(`weeklyPlanner-${weekKey}`, JSON.stringify(plannerData));
+    
+    if (isFirebaseReady && window.FirebaseService) {
+        await window.FirebaseService.saveWeekData(weekKey, plannerData);
+    } else {
+        // Fallback to localStorage
+        localStorage.setItem(`weeklyPlanner-${weekKey}`, JSON.stringify(plannerData));
+    }
     
     // Also save general planner structure (roles without goals) for new weeks
     const structureData = {
@@ -312,25 +347,52 @@ function saveToLocalStorage() {
         })),
         goalColumnsCount: plannerData.goalColumnsCount
     };
-    localStorage.setItem('weeklyPlanner-structure', JSON.stringify(structureData));
+    
+    if (isFirebaseReady && window.FirebaseService) {
+        await window.FirebaseService.saveStructureTemplate(structureData);
+    } else {
+        localStorage.setItem('weeklyPlanner-structure', JSON.stringify(structureData));
+    }
 }
 
-function loadWeekData() {
+// Keep the old function name for compatibility
+function saveToLocalStorage() {
+    saveToFirestore();
+}
+
+async function loadWeekData() {
     const weekKey = getWeekKey(currentWeekStart);
-    const saved = localStorage.getItem(`weeklyPlanner-${weekKey}`);
     
     // Clear current data first
     clearCurrentWeekData();
     
-    if (saved) {
+    let weekData = null;
+    
+    if (isFirebaseReady && window.FirebaseService) {
+        weekData = await window.FirebaseService.loadWeekData(weekKey);
+    } else {
+        // Fallback to localStorage
+        const saved = localStorage.getItem(`weeklyPlanner-${weekKey}`);
+        weekData = saved ? JSON.parse(saved) : null;
+    }
+    
+    if (weekData) {
         // Load data for this specific week
-        loadPlannerData(JSON.parse(saved));
+        loadPlannerData(weekData);
     } else {
         // No data for this week, check if we have a structure template
-        const structureData = localStorage.getItem('weeklyPlanner-structure');
+        let structureData = null;
+        
+        if (isFirebaseReady && window.FirebaseService) {
+            structureData = await window.FirebaseService.loadStructureTemplate();
+        } else {
+            const saved = localStorage.getItem('weeklyPlanner-structure');
+            structureData = saved ? JSON.parse(saved) : null;
+        }
+        
         if (structureData) {
             // Load structure with empty goals
-            loadPlannerData(JSON.parse(structureData));
+            loadPlannerData(structureData);
         }
     }
 }
@@ -593,7 +655,7 @@ function deleteRole(roleCell) {
 }
 
 function setupGoalCellListeners(goalCell) {
-    goalCell.addEventListener('input', saveToLocalStorage);
+    goalCell.addEventListener('input', debounce(saveToLocalStorage, 1000));
     goalCell.addEventListener('blur', saveToLocalStorage);
     
     // Add click handler for checkbox functionality
@@ -622,6 +684,19 @@ function setupGoalCellListeners(goalCell) {
 function toggleGoalCompletion(goalCell) {
     goalCell.classList.toggle('completed');
     saveToLocalStorage();
+}
+
+// Debounce function to avoid too many saves while typing
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 function rgbToHex(rgb) {

@@ -82,6 +82,42 @@ header h1 {
     background-color: #545b62;
 }
 
+.sync-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.sync-indicator {
+    font-size: 10px;
+    transition: color 0.3s ease;
+}
+
+.sync-indicator.online {
+    color: #28a745;
+}
+
+.sync-indicator.offline {
+    color: #6c757d;
+}
+
+.sync-indicator.syncing {
+    color: #007bff;
+    animation: pulse 1.5s infinite;
+}
+
+.sync-indicator.error {
+    color: #dc3545;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
 .controls {
     display: flex;
     justify-content: center;
