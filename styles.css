@@ -25,12 +25,61 @@ header {
     border-bottom: 2px solid #ddd;
 }
 
+.week-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.week-picker {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
 header h1 {
     text-align: center;
     font-size: 18px;
     font-weight: bold;
-    margin-bottom: 15px;
+    margin: 0;
     color: #333;
+}
+
+.clickable-header {
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.clickable-header:hover {
+    background-color: #f8f9fa;
+}
+
+.date-picker {
+    font-size: 16px;
+    padding: 8px;
+    border: 2px solid #007bff;
+    border-radius: 4px;
+    outline: none;
+}
+
+.btn-nav {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    width: 80px;
+    height: 36px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-nav:hover {
+    background-color: #545b62;
 }
 
 .controls {
@@ -106,13 +155,65 @@ header h1 {
 .goal-cell {
     min-height: 80px;
     padding: 15px;
+    padding-left: 35px;
     background-color: white;
     outline: none;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
 .goal-cell:focus {
     background-color: #f8f9fa;
     outline: 2px solid #007bff;
+}
+
+.goal-cell:hover {
+    background-color: #f8f9fa;
+}
+
+/* Checkbox area styling */
+.goal-cell::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid #007bff;
+    border-radius: 3px;
+    background-color: white;
+    transition: all 0.2s ease;
+}
+
+.goal-cell.completed::before {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.goal-cell.completed::after {
+    content: "✓";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 2;
+}
+
+/* Completed goal styling */
+.goal-cell.completed {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    text-decoration: line-through;
+    opacity: 0.8;
+}
+
+.goal-cell.completed:hover {
+    background-color: #e9ecef;
 }
 
 /* Role-specific colors matching the mock-up */

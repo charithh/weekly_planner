@@ -1,4 +1,10 @@
+// Global variable to track current week
+let currentWeekStart = null;
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize current week to today's week
+    currentWeekStart = getWeekStart(new Date());
+    
     // Initialize the planner
     initializePlanner();
     
@@ -13,8 +19,7 @@ function initializePlanner() {
     // Auto-save functionality
     const goalCells = document.querySelectorAll('.goal-cell');
     goalCells.forEach(cell => {
-        cell.addEventListener('input', saveToLocalStorage);
-        cell.addEventListener('blur', saveToLocalStorage);
+        setupGoalCellListeners(cell);
     });
     
     // Setup role editing functionality
@@ -45,10 +50,49 @@ function setupEventListeners() {
         removeGoalColumn();
     });
     
+    // Week navigation buttons
+    document.getElementById('prevWeek').addEventListener('click', function() {
+        navigateWeek(-1);
+    });
+    
+    document.getElementById('nextWeek').addEventListener('click', function() {
+        navigateWeek(1);
+    });
+    
+    // Today button
+    document.getElementById('todayButton').addEventListener('click', function() {
+        currentWeekStart = getWeekStart(new Date());
+        updateWeekHeader();
+        loadWeekData();
+    });
+    
+    // Week header click for date picker
+    document.getElementById('weekHeader').addEventListener('click', function() {
+        showDatePicker();
+    });
+    
+    // Date picker change
+    document.getElementById('datePicker').addEventListener('change', function() {
+        const selectedDate = new Date(this.value);
+        currentWeekStart = getWeekStart(selectedDate);
+        updateWeekHeader();
+        loadWeekData();
+        this.style.display = 'none';
+        document.getElementById('weekHeader').style.display = 'block';
+    });
+    
     // Hide context menu on click outside
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.context-menu')) {
             hideContextMenu();
+        }
+        // Hide date picker if clicking outside
+        if (!e.target.closest('.week-picker') && !e.target.closest('#datePicker')) {
+            const datePicker = document.getElementById('datePicker');
+            if (datePicker.style.display !== 'none') {
+                datePicker.style.display = 'none';
+                document.getElementById('weekHeader').style.display = 'block';
+            }
         }
     });
 }
@@ -77,8 +121,7 @@ function addRole() {
         const goalCell = document.createElement('td');
         goalCell.className = 'goal-cell';
         goalCell.contentEditable = true;
-        goalCell.addEventListener('input', saveToLocalStorage);
-        goalCell.addEventListener('blur', saveToLocalStorage);
+        setupGoalCellListeners(goalCell);
         newRow.appendChild(goalCell);
     }
     
@@ -117,8 +160,7 @@ function addGoalColumn() {
         const newCell = document.createElement('td');
         newCell.className = 'goal-cell';
         newCell.contentEditable = true;
-        newCell.addEventListener('input', saveToLocalStorage);
-        newCell.addEventListener('blur', saveToLocalStorage);
+        setupGoalCellListeners(newCell);
         row.appendChild(newCell);
     });
     
@@ -128,8 +170,7 @@ function addGoalColumn() {
         const sharpenCell = document.createElement('td');
         sharpenCell.className = 'goal-cell';
         sharpenCell.contentEditable = true;
-        sharpenCell.addEventListener('input', saveToLocalStorage);
-        sharpenCell.addEventListener('blur', saveToLocalStorage);
+        setupGoalCellListeners(sharpenCell);
         sharpenRow.appendChild(sharpenCell);
     }
     
@@ -174,11 +215,34 @@ function getRandomColor() {
     return colors[Math.floor(Math.random() * colors.length)];
 }
 
-function updateWeekHeader() {
-    const today = new Date();
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - today.getDay());
+function getWeekStart(date) {
+    const sunday = new Date(date);
+    sunday.setDate(date.getDate() - date.getDay());
+    sunday.setHours(0, 0, 0, 0);
+    return sunday;
+}
+
+function navigateWeek(direction) {
+    currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+    updateWeekHeader();
+    loadWeekData();
+}
+
+function showDatePicker() {
+    const datePicker = document.getElementById('datePicker');
+    const weekHeader = document.getElementById('weekHeader');
     
+    // Set date picker to current week's Sunday
+    const dateString = currentWeekStart.toISOString().split('T')[0];
+    datePicker.value = dateString;
+    
+    // Show date picker, hide header
+    weekHeader.style.display = 'none';
+    datePicker.style.display = 'block';
+    datePicker.focus();
+}
+
+function updateWeekHeader() {
     const options = { 
         weekday: 'long',
         year: 'numeric', 
@@ -186,17 +250,25 @@ function updateWeekHeader() {
         day: 'numeric' 
     };
     
-    const sundayFormatted = sunday.toLocaleDateString('en-US', options);
+    const sundayFormatted = currentWeekStart.toLocaleDateString('en-US', options);
     const headerText = `WEEK OF: ${sundayFormatted}`;
     
     document.getElementById('weekHeader').textContent = headerText;
+    
+    // Update page title
+    document.title = `Weekly Planner - ${sundayFormatted}`;
+}
+
+function getWeekKey(weekStart) {
+    return `week-${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`;
 }
 
 function saveToLocalStorage() {
     const plannerData = {
         roles: [],
         sharpenData: [],
-        goalColumnsCount: document.querySelector('thead tr').children.length - 1
+        goalColumnsCount: document.querySelector('thead tr').children.length - 1,
+        weekStart: currentWeekStart.toISOString()
     };
     
     // Save main planner data
@@ -208,7 +280,10 @@ function saveToLocalStorage() {
         const roleData = {
             name: roleCell.textContent.trim(),
             color: roleCell.style.backgroundColor || '',
-            goals: Array.from(goalCells).map(cell => cell.textContent.trim())
+            goals: Array.from(goalCells).map(cell => ({
+                text: cell.textContent.trim(),
+                completed: cell.classList.contains('completed')
+            }))
         };
         
         plannerData.roles.push(roleData);
@@ -218,19 +293,59 @@ function saveToLocalStorage() {
     const sharpenRow = document.querySelector('.sharpen-section tbody tr');
     if (sharpenRow) {
         const sharpenCells = sharpenRow.querySelectorAll('.goal-cell');
-        plannerData.sharpenData = Array.from(sharpenCells).map(cell => cell.textContent.trim());
+        plannerData.sharpenData = Array.from(sharpenCells).map(cell => ({
+            text: cell.textContent.trim(),
+            completed: cell.classList.contains('completed')
+        }));
     }
     
-    localStorage.setItem('weeklyPlanner', JSON.stringify(plannerData));
+    // Save data for current week
+    const weekKey = getWeekKey(currentWeekStart);
+    localStorage.setItem(`weeklyPlanner-${weekKey}`, JSON.stringify(plannerData));
+    
+    // Also save general planner structure (roles without goals) for new weeks
+    const structureData = {
+        roles: plannerData.roles.map(role => ({
+            name: role.name,
+            color: role.color,
+            goals: [] // Empty goals for structure template
+        })),
+        goalColumnsCount: plannerData.goalColumnsCount
+    };
+    localStorage.setItem('weeklyPlanner-structure', JSON.stringify(structureData));
 }
 
-function loadFromLocalStorage() {
-    const saved = localStorage.getItem('weeklyPlanner');
-    if (!saved) return;
+function loadWeekData() {
+    const weekKey = getWeekKey(currentWeekStart);
+    const saved = localStorage.getItem(`weeklyPlanner-${weekKey}`);
     
+    // Clear current data first
+    clearCurrentWeekData();
+    
+    if (saved) {
+        // Load data for this specific week
+        loadPlannerData(JSON.parse(saved));
+    } else {
+        // No data for this week, check if we have a structure template
+        const structureData = localStorage.getItem('weeklyPlanner-structure');
+        if (structureData) {
+            // Load structure with empty goals
+            loadPlannerData(JSON.parse(structureData));
+        }
+    }
+}
+
+function clearCurrentWeekData() {
+    // Clear all goal cells
+    const goalCells = document.querySelectorAll('.goal-cell');
+    goalCells.forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('completed');
+    });
+}
+
+function loadPlannerData(plannerData) {
     try {
-        const plannerData = JSON.parse(saved);
-        
         // Load goals for existing roles
         const rows = document.querySelectorAll('#plannerBody .role-row');
         rows.forEach((row, index) => {
@@ -238,7 +353,17 @@ function loadFromLocalStorage() {
                 const goalCells = row.querySelectorAll('.goal-cell');
                 goalCells.forEach((cell, goalIndex) => {
                     if (plannerData.roles[index].goals[goalIndex]) {
-                        cell.textContent = plannerData.roles[index].goals[goalIndex];
+                        const goalData = plannerData.roles[index].goals[goalIndex];
+                        if (typeof goalData === 'string') {
+                            // Legacy format support
+                            cell.textContent = goalData;
+                        } else {
+                            // New format with completion status
+                            cell.textContent = goalData.text;
+                            if (goalData.completed) {
+                                cell.classList.add('completed');
+                            }
+                        }
                     }
                 });
             }
@@ -250,14 +375,29 @@ function loadFromLocalStorage() {
             const sharpenCells = sharpenRow.querySelectorAll('.goal-cell');
             sharpenCells.forEach((cell, index) => {
                 if (plannerData.sharpenData[index]) {
-                    cell.textContent = plannerData.sharpenData[index];
+                    const goalData = plannerData.sharpenData[index];
+                    if (typeof goalData === 'string') {
+                        // Legacy format support
+                        cell.textContent = goalData;
+                    } else {
+                        // New format with completion status
+                        cell.textContent = goalData.text;
+                        if (goalData.completed) {
+                            cell.classList.add('completed');
+                        }
+                    }
                 }
             });
         }
         
     } catch (error) {
-        console.error('Error loading saved data:', error);
+        console.error('Error loading planner data:', error);
     }
+}
+
+function loadFromLocalStorage() {
+    // This function is now just a wrapper for loadWeekData
+    loadWeekData();
 }
 
 // Export functionality
@@ -423,12 +563,15 @@ function duplicateRole(roleCell) {
         const goalCell = document.createElement('td');
         goalCell.className = 'goal-cell';
         goalCell.contentEditable = true;
-        goalCell.addEventListener('input', saveToLocalStorage);
-        goalCell.addEventListener('blur', saveToLocalStorage);
+        setupGoalCellListeners(goalCell);
         
         // Copy content from original if it exists
         if (originalGoalCells[i]) {
             goalCell.textContent = originalGoalCells[i].textContent;
+            // Copy completion status
+            if (originalGoalCells[i].classList.contains('completed')) {
+                goalCell.classList.add('completed');
+            }
         }
         
         newRow.appendChild(goalCell);
@@ -447,6 +590,38 @@ function deleteRole(roleCell) {
         parentRow.remove();
         saveToLocalStorage();
     }
+}
+
+function setupGoalCellListeners(goalCell) {
+    goalCell.addEventListener('input', saveToLocalStorage);
+    goalCell.addEventListener('blur', saveToLocalStorage);
+    
+    // Add click handler for checkbox functionality
+    goalCell.addEventListener('click', function(e) {
+        // Check if clicked on the checkbox area (left 30px of cell)
+        const rect = goalCell.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        
+        if (clickX <= 30) {
+            e.preventDefault();
+            toggleGoalCompletion(goalCell);
+        }
+    });
+    
+    // Prevent editing when clicking checkbox area
+    goalCell.addEventListener('mousedown', function(e) {
+        const rect = goalCell.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        
+        if (clickX <= 30) {
+            e.preventDefault();
+        }
+    });
+}
+
+function toggleGoalCompletion(goalCell) {
+    goalCell.classList.toggle('completed');
+    saveToLocalStorage();
 }
 
 function rgbToHex(rgb) {

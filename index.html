@@ -9,12 +9,20 @@
 <body>
     <div class="container">
         <header>
-            <h1 id="weekHeader">WEEK OF: [DAY OF SUNDAY/ MONTH/YEAR]</h1>
+            <div class="week-selector">
+                <button id="prevWeek" class="btn btn-nav">‹ Previous</button>
+                <div class="week-picker">
+                    <h1 id="weekHeader" class="clickable-header">WEEK OF: [DAY OF SUNDAY/ MONTH/YEAR]</h1>
+                    <input type="date" id="datePicker" class="date-picker" style="display: none;">
+                </div>
+                <button id="nextWeek" class="btn btn-nav">Next ›</button>
+            </div>
             <div class="controls">
                 <button id="addRole" class="btn btn-primary">+ Add Role</button>
                 <button id="addGoal" class="btn btn-primary">+ Add Goal Column</button>
                 <button id="removeRole" class="btn btn-secondary">- Remove Role</button>
                 <button id="removeGoal" class="btn btn-secondary">- Remove Goal Column</button>
+                <button id="todayButton" class="btn btn-secondary">Today</button>
             </div>
         </header>
         
@@ -31,21 +39,21 @@
                 <tbody id="plannerBody">
                     <tr class="role-row" data-role="individual">
                         <td class="role-cell individual">Individual</td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>
                     <tr class="role-row" data-role="husband">
                         <td class="role-cell husband">Husband</td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>
                     <tr class="role-row" data-role="father">
                         <td class="role-cell father">Father</td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>
                     <tr class="role-row" data-role="engineering-manager">
                         <td class="role-cell engineering-manager">
@@ -57,21 +65,21 @@
                                 <li>Product</li>
                             </ul>
                         </td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>
                     <tr class="role-row" data-role="vpm-toastmaster">
                         <td class="role-cell vpm-toastmaster">VPM - Toastmaster</td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>
                     <tr class="role-row" data-role="founder-technology">
                         <td class="role-cell founder-technology">Founder - Technology</td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>
                 </tbody>
             </table>
@@ -82,8 +90,8 @@
                 <tbody>
                     <tr class="role-row">
                         <td class="role-cell sharpen-saw">SHARPEN THE SAW</td>
-                        <td class="goal-cell" contenteditable="true"></td>
-                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>
                 </tbody>
             </table>
