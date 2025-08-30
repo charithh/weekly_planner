@@ -196,10 +196,110 @@ header h1 {
     }
 }
 
+/* Context Menu Styles */
+.context-menu {
+    position: absolute;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    min-width: 160px;
+    padding: 4px 0;
+}
+
+.context-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+}
+
+.context-menu-item:hover {
+    background-color: #f5f5f5;
+}
+
+.context-menu-item.danger {
+    color: #dc3545;
+}
+
+.context-menu-item.danger:hover {
+    background-color: #f8d7da;
+}
+
+.context-menu-divider {
+    border: 0;
+    border-top: 1px solid #e9ecef;
+    margin: 4px 0;
+}
+
+/* Role Cell Edit States */
+.role-cell {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.role-cell:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+.role-cell::after {
+    content: "Double-click to edit";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+}
+
+.role-cell:hover::after {
+    opacity: 1;
+}
+
+/* Engineering Manager special case */
+.role-cell.engineering-manager:hover::after {
+    display: none;
+}
+
+/* Custom role highlight */
+.role-cell.custom-role {
+    border: 2px dashed transparent;
+}
+
+.role-cell.custom-role:hover {
+    border-color: #007bff;
+}
+
 /* Print styles */
 @media print {
     .controls {
         display: none;
+    }
+    
+    .context-menu {
+        display: none !important;
+    }
+    
+    .role-cell::after {
+        display: none !important;
+    }
+    
+    .role-cell:hover {
+        transform: none;
     }
     
     body {

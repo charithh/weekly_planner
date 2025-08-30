@@ -17,6 +17,9 @@ function initializePlanner() {
         cell.addEventListener('blur', saveToLocalStorage);
     });
     
+    // Setup role editing functionality
+    setupRoleEditingListeners();
+    
     // Load saved data
     loadFromLocalStorage();
 }
@@ -41,6 +44,13 @@ function setupEventListeners() {
     document.getElementById('removeGoal').addEventListener('click', function() {
         removeGoalColumn();
     });
+    
+    // Hide context menu on click outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.context-menu')) {
+            hideContextMenu();
+        }
+    });
 }
 
 function addRole() {
@@ -59,6 +69,7 @@ function addRole() {
     roleCell.className = 'role-cell custom-role';
     roleCell.textContent = newRole;
     roleCell.style.backgroundColor = getRandomColor();
+    setupRoleEditingForCell(roleCell);
     newRow.appendChild(roleCell);
     
     // Create goal cells
@@ -275,6 +286,182 @@ function clearAllData() {
     }
 }
 
+function setupRoleEditingListeners() {
+    const roleCells = document.querySelectorAll('.role-cell');
+    roleCells.forEach(cell => {
+        setupRoleEditingForCell(cell);
+    });
+}
+
+function setupRoleEditingForCell(roleCell) {
+    // Double-click to edit role name
+    roleCell.addEventListener('dblclick', function(e) {
+        e.preventDefault();
+        editRoleName(roleCell);
+    });
+    
+    // Right-click for context menu
+    roleCell.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        showContextMenu(e, roleCell);
+    });
+}
+
+function editRoleName(roleCell) {
+    const currentName = roleCell.textContent.trim();
+    const newName = prompt('Edit role name:', currentName);
+    
+    if (newName && newName.trim() !== '' && newName !== currentName) {
+        // Handle sub-roles for Engineering Manager
+        if (roleCell.querySelector('.sub-roles')) {
+            const subRolesList = roleCell.querySelector('.sub-roles');
+            roleCell.innerHTML = newName;
+            roleCell.appendChild(subRolesList);
+        } else {
+            roleCell.textContent = newName;
+        }
+        
+        // Update data-role attribute
+        const parentRow = roleCell.closest('.role-row');
+        parentRow.setAttribute('data-role', newName.toLowerCase().replace(/\s+/g, '-'));
+        
+        saveToLocalStorage();
+    }
+}
+
+function showContextMenu(event, roleCell) {
+    hideContextMenu();
+    
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'context-menu';
+    contextMenu.innerHTML = `
+        <div class="context-menu-item" onclick="editRoleName(arguments[0])" data-role-cell="true">✏️ Edit Name</div>
+        <div class="context-menu-item" onclick="changeRoleColor(arguments[0])" data-role-cell="true">🎨 Change Color</div>
+        <div class="context-menu-item" onclick="duplicateRole(arguments[0])" data-role-cell="true">📋 Duplicate Role</div>
+        <hr class="context-menu-divider">
+        <div class="context-menu-item danger" onclick="deleteRole(arguments[0])" data-role-cell="true">🗑️ Delete Role</div>
+    `;
+    
+    // Position the menu
+    contextMenu.style.left = event.pageX + 'px';
+    contextMenu.style.top = event.pageY + 'px';
+    
+    document.body.appendChild(contextMenu);
+    
+    // Add click handlers with proper context
+    const menuItems = contextMenu.querySelectorAll('.context-menu-item');
+    menuItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const action = item.getAttribute('onclick').split('(')[0];
+            
+            switch(action) {
+                case 'editRoleName':
+                    editRoleName(roleCell);
+                    break;
+                case 'changeRoleColor':
+                    changeRoleColor(roleCell);
+                    break;
+                case 'duplicateRole':
+                    duplicateRole(roleCell);
+                    break;
+                case 'deleteRole':
+                    deleteRole(roleCell);
+                    break;
+            }
+            
+            hideContextMenu();
+        });
+    });
+}
+
+function hideContextMenu() {
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+}
+
+function changeRoleColor(roleCell) {
+    const colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    colorPicker.value = rgbToHex(roleCell.style.backgroundColor) || '#a8c8ec';
+    
+    colorPicker.addEventListener('change', function() {
+        roleCell.style.backgroundColor = colorPicker.value;
+        saveToLocalStorage();
+    });
+    
+    colorPicker.click();
+}
+
+function duplicateRole(roleCell) {
+    const parentRow = roleCell.closest('.role-row');
+    const tbody = document.getElementById('plannerBody');
+    const goalColumnsCount = document.querySelector('thead tr').children.length - 1;
+    
+    const roleName = roleCell.textContent.trim();
+    const newRoleName = prompt('Enter name for duplicated role:', roleName + ' Copy');
+    
+    if (!newRoleName) return;
+    
+    const newRow = document.createElement('tr');
+    newRow.className = 'role-row';
+    newRow.setAttribute('data-role', newRoleName.toLowerCase().replace(/\s+/g, '-'));
+    
+    // Create role cell with same color
+    const newRoleCell = document.createElement('td');
+    newRoleCell.className = roleCell.className;
+    newRoleCell.textContent = newRoleName;
+    newRoleCell.style.backgroundColor = roleCell.style.backgroundColor;
+    setupRoleEditingForCell(newRoleCell);
+    newRow.appendChild(newRoleCell);
+    
+    // Copy goal cells content
+    const originalGoalCells = parentRow.querySelectorAll('.goal-cell');
+    for (let i = 0; i < goalColumnsCount; i++) {
+        const goalCell = document.createElement('td');
+        goalCell.className = 'goal-cell';
+        goalCell.contentEditable = true;
+        goalCell.addEventListener('input', saveToLocalStorage);
+        goalCell.addEventListener('blur', saveToLocalStorage);
+        
+        // Copy content from original if it exists
+        if (originalGoalCells[i]) {
+            goalCell.textContent = originalGoalCells[i].textContent;
+        }
+        
+        newRow.appendChild(goalCell);
+    }
+    
+    // Insert after the original row
+    parentRow.insertAdjacentElement('afterend', newRow);
+    saveToLocalStorage();
+}
+
+function deleteRole(roleCell) {
+    const parentRow = roleCell.closest('.role-row');
+    const roleName = roleCell.textContent.trim();
+    
+    if (confirm(`Delete role "${roleName}"? This will remove all associated goals.`)) {
+        parentRow.remove();
+        saveToLocalStorage();
+    }
+}
+
+function rgbToHex(rgb) {
+    if (!rgb) return null;
+    
+    const result = rgb.match(/\d+/g);
+    if (!result) return null;
+    
+    const r = parseInt(result[0]);
+    const g = parseInt(result[1]);
+    const b = parseInt(result[2]);
+    
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
 // Add keyboard shortcuts
 document.addEventListener('keydown', function(e) {
     if (e.ctrlKey) {
@@ -288,5 +475,10 @@ document.addEventListener('keydown', function(e) {
                 clearAllData();
                 break;
         }
+    }
+    
+    // Hide context menu on Escape
+    if (e.key === 'Escape') {
+        hideContextMenu();
     }
 });
