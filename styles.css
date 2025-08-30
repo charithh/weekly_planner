@@ -1,0 +1,213 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+header {
+    padding: 20px;
+    background-color: #fff;
+    border-bottom: 2px solid #ddd;
+}
+
+header h1 {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+.planner-container {
+    margin: 20px;
+}
+
+.planner-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.planner-table th,
+.planner-table td {
+    border: 2px solid #333;
+    text-align: left;
+    vertical-align: top;
+}
+
+.role-header,
+.goal-header {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 12px;
+    text-align: center;
+}
+
+.role-cell {
+    width: 200px;
+    min-height: 80px;
+    padding: 15px;
+    font-weight: bold;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.goal-cell {
+    min-height: 80px;
+    padding: 15px;
+    background-color: white;
+    outline: none;
+}
+
+.goal-cell:focus {
+    background-color: #f8f9fa;
+    outline: 2px solid #007bff;
+}
+
+/* Role-specific colors matching the mock-up */
+.role-cell.individual {
+    background-color: #a8c8ec;
+}
+
+.role-cell.husband {
+    background-color: #b8d4b8;
+}
+
+.role-cell.father {
+    background-color: #c8a8d8;
+}
+
+.role-cell.engineering-manager {
+    background-color: #f4d1a4;
+}
+
+.role-cell.vpm-toastmaster {
+    background-color: #d8c8e8;
+}
+
+.role-cell.founder-technology {
+    background-color: #f4a4a4;
+}
+
+.role-cell.sharpen-saw {
+    background-color: #ffff66;
+}
+
+.sub-roles {
+    margin-top: 8px;
+    margin-left: 15px;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.sub-roles li {
+    margin: 2px 0;
+}
+
+.sharpen-section {
+    margin-top: 30px;
+}
+
+.sharpen-section .planner-table {
+    margin-bottom: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .planner-container {
+        margin: 10px;
+        overflow-x: auto;
+    }
+    
+    .controls {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .btn {
+        width: 200px;
+    }
+    
+    .role-cell {
+        width: 150px;
+        font-size: 12px;
+        padding: 10px;
+    }
+    
+    .goal-cell {
+        min-width: 120px;
+        padding: 10px;
+        font-size: 12px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .controls {
+        display: none;
+    }
+    
+    body {
+        padding: 0;
+    }
+    
+    .container {
+        box-shadow: none;
+        border-radius: 0;
+    }
+}

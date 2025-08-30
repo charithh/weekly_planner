@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Planner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="weekHeader">WEEK OF: [DAY OF SUNDAY/ MONTH/YEAR]</h1>
+            <div class="controls">
+                <button id="addRole" class="btn btn-primary">+ Add Role</button>
+                <button id="addGoal" class="btn btn-primary">+ Add Goal Column</button>
+                <button id="removeRole" class="btn btn-secondary">- Remove Role</button>
+                <button id="removeGoal" class="btn btn-secondary">- Remove Goal Column</button>
+            </div>
+        </header>
+        
+        <div class="planner-container">
+            <table id="plannerTable" class="planner-table">
+                <thead>
+                    <tr>
+                        <th class="role-header">ROLE</th>
+                        <th class="goal-header">GOAL</th>
+                        <th class="goal-header">GOAL</th>
+                        <th class="goal-header">GOAL</th>
+                    </tr>
+                </thead>
+                <tbody id="plannerBody">
+                    <tr class="role-row" data-role="individual">
+                        <td class="role-cell individual">Individual</td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                    </tr>
+                    <tr class="role-row" data-role="husband">
+                        <td class="role-cell husband">Husband</td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                    </tr>
+                    <tr class="role-row" data-role="father">
+                        <td class="role-cell father">Father</td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                    </tr>
+                    <tr class="role-row" data-role="engineering-manager">
+                        <td class="role-cell engineering-manager">
+                            Engineering Manager
+                            <ul class="sub-roles">
+                                <li>People</li>
+                                <li>Process</li>
+                                <li>Technology</li>
+                                <li>Product</li>
+                            </ul>
+                        </td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                    </tr>
+                    <tr class="role-row" data-role="vpm-toastmaster">
+                        <td class="role-cell vpm-toastmaster">VPM - Toastmaster</td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                    </tr>
+                    <tr class="role-row" data-role="founder-technology">
+                        <td class="role-cell founder-technology">Founder - Technology</td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="planner-container sharpen-section">
+            <table class="planner-table">
+                <tbody>
+                    <tr class="role-row">
+                        <td class="role-cell sharpen-saw">SHARPEN THE SAW</td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                        <td class="goal-cell" contenteditable="true"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
