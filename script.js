@@ -189,72 +189,17 @@ function removeRole() {
 }
 
 function addGoalColumn() {
-    const table = document.getElementById('plannerTable');
-    const headerRow = table.querySelector('thead tr');
-    const bodyRows = table.querySelectorAll('tbody tr');
-    
-    // Add header
-    const newHeader = document.createElement('th');
-    newHeader.className = 'goal-header';
-    newHeader.textContent = 'GOAL';
-    headerRow.appendChild(newHeader);
-    
-    // Add cells to each row
-    bodyRows.forEach(row => {
-        const newCell = document.createElement('td');
-        newCell.className = 'goal-cell';
-        newCell.contentEditable = true;
-        setupGoalCellListeners(newCell);
-        row.appendChild(newCell);
-    });
-    
-    // Update sharpen section
-    const sharpenRow = document.querySelector('.sharpen-section tbody tr');
-    if (sharpenRow) {
-        const sharpenCell = document.createElement('td');
-        sharpenCell.className = 'goal-cell';
-        sharpenCell.contentEditable = true;
-        setupGoalCellListeners(sharpenCell);
-        sharpenRow.appendChild(sharpenCell);
-        
-        // Ensure sharpen role cell maintains editing functionality
-        const sharpenRoleCell = sharpenRow.querySelector('.role-cell.sharpen-saw');
-        if (sharpenRoleCell) {
-            setupRoleEditingForCell(sharpenRoleCell);
-        }
-    }
-    
+    addGoalColumnToStructure();
     saveToLocalStorage();
 }
 
 function removeGoalColumn() {
-    const table = document.getElementById('plannerTable');
-    const headerRow = table.querySelector('thead tr');
-    const bodyRows = table.querySelectorAll('tbody tr');
+    const headerRow = document.querySelector('thead tr');
     const goalHeaders = headerRow.querySelectorAll('.goal-header');
     
     if (goalHeaders.length > 1) {
-        if (confirm('Remove the last goal column?')) {
-            // Remove header
-            headerRow.removeChild(headerRow.lastElementChild);
-            
-            // Remove cells from each row
-            bodyRows.forEach(row => {
-                row.removeChild(row.lastElementChild);
-            });
-            
-            // Update sharpen section
-            const sharpenRow = document.querySelector('.sharpen-section tbody tr');
-            if (sharpenRow && sharpenRow.children.length > 2) {
-                sharpenRow.removeChild(sharpenRow.lastElementChild);
-                
-                // Ensure sharpen role cell maintains editing functionality
-                const sharpenRoleCell = sharpenRow.querySelector('.role-cell.sharpen-saw');
-                if (sharpenRoleCell) {
-                    setupRoleEditingForCell(sharpenRoleCell);
-                }
-            }
-            
+        if (confirm('Remove the last goal column for this week?')) {
+            removeGoalColumnFromStructure();
             saveToLocalStorage();
         }
     } else {
@@ -366,19 +311,32 @@ async function saveToFirestore() {
     }
     
     // Also save general planner structure (roles without goals) for new weeks
-    const structureData = {
-        roles: plannerData.roles.map(role => ({
-            name: role.name,
-            color: role.color,
-            goals: [] // Empty goals for structure template
-        })),
-        goalColumnsCount: plannerData.goalColumnsCount
-    };
+    // Only update structure if roles changed, not goal columns (to keep week independence)
+    let structureData = null;
     
     if (isFirebaseReady && window.FirebaseService) {
-        await window.FirebaseService.saveStructureTemplate(structureData);
+        structureData = await window.FirebaseService.loadStructureTemplate();
     } else {
-        localStorage.setItem('weeklyPlanner-structure', JSON.stringify(structureData));
+        const saved = localStorage.getItem('weeklyPlanner-structure');
+        structureData = saved ? JSON.parse(saved) : null;
+    }
+    
+    // Create new structure template only if it doesn't exist or roles changed
+    if (!structureData || structureData.roles.length !== plannerData.roles.length) {
+        const newStructureData = {
+            roles: plannerData.roles.map(role => ({
+                name: role.name,
+                color: role.color,
+                goals: [] // Empty goals for structure template
+            })),
+            goalColumnsCount: 3 // Default goal column count for new weeks
+        };
+        
+        if (isFirebaseReady && window.FirebaseService) {
+            await window.FirebaseService.saveStructureTemplate(newStructureData);
+        } else {
+            localStorage.setItem('weeklyPlanner-structure', JSON.stringify(newStructureData));
+        }
     }
 }
 
@@ -433,8 +391,101 @@ function clearCurrentWeekData() {
     });
 }
 
+function adjustTableStructure(targetGoalCount) {
+    const currentGoalCount = document.querySelector('thead tr').children.length - 1;
+    const difference = targetGoalCount - currentGoalCount;
+    
+    if (difference > 0) {
+        // Add columns
+        for (let i = 0; i < difference; i++) {
+            addGoalColumnToStructure();
+        }
+    } else if (difference < 0) {
+        // Remove columns
+        for (let i = 0; i < Math.abs(difference); i++) {
+            removeGoalColumnFromStructure();
+        }
+    }
+}
+
+function addGoalColumnToStructure() {
+    const table = document.getElementById('plannerTable');
+    const headerRow = table.querySelector('thead tr');
+    const bodyRows = table.querySelectorAll('tbody tr');
+    
+    // Add header
+    const newHeader = document.createElement('th');
+    newHeader.className = 'goal-header';
+    newHeader.textContent = 'GOAL';
+    headerRow.appendChild(newHeader);
+    
+    // Add cells to each row
+    bodyRows.forEach(row => {
+        const newCell = document.createElement('td');
+        newCell.className = 'goal-cell';
+        newCell.contentEditable = true;
+        setupGoalCellListeners(newCell);
+        row.appendChild(newCell);
+    });
+    
+    // Update sharpen section
+    const sharpenRow = document.querySelector('.sharpen-section tbody tr');
+    if (sharpenRow) {
+        const sharpenCell = document.createElement('td');
+        sharpenCell.className = 'goal-cell';
+        sharpenCell.contentEditable = true;
+        setupGoalCellListeners(sharpenCell);
+        sharpenRow.appendChild(sharpenCell);
+        
+        // Ensure sharpen role cell maintains editing functionality
+        const sharpenRoleCell = sharpenRow.querySelector('.role-cell.sharpen-saw');
+        if (sharpenRoleCell) {
+            setupRoleEditingForCell(sharpenRoleCell);
+        }
+    }
+}
+
+function removeGoalColumnFromStructure() {
+    const table = document.getElementById('plannerTable');
+    const headerRow = table.querySelector('thead tr');
+    const bodyRows = table.querySelectorAll('tbody tr');
+    const goalHeaders = headerRow.querySelectorAll('.goal-header');
+    
+    if (goalHeaders.length > 1) {
+        // Remove header
+        headerRow.removeChild(headerRow.lastElementChild);
+        
+        // Remove cells from each row
+        bodyRows.forEach(row => {
+            if (row.children.length > 2) {
+                row.removeChild(row.lastElementChild);
+            }
+        });
+        
+        // Update sharpen section
+        const sharpenRow = document.querySelector('.sharpen-section tbody tr');
+        if (sharpenRow && sharpenRow.children.length > 2) {
+            sharpenRow.removeChild(sharpenRow.lastElementChild);
+            
+            // Ensure sharpen role cell maintains editing functionality
+            const sharpenRoleCell = sharpenRow.querySelector('.role-cell.sharpen-saw');
+            if (sharpenRoleCell) {
+                setupRoleEditingForCell(sharpenRoleCell);
+            }
+        }
+    }
+}
+
 function loadPlannerData(plannerData) {
     try {
+        // First, adjust the table structure if goal column count differs
+        const currentGoalCount = document.querySelector('thead tr').children.length - 1;
+        const savedGoalCount = plannerData.goalColumnsCount || currentGoalCount;
+        
+        if (savedGoalCount !== currentGoalCount) {
+            adjustTableStructure(savedGoalCount);
+        }
+        
         // Load goals for existing roles
         const rows = document.querySelectorAll('#plannerBody .role-row');
         rows.forEach((row, index) => {
