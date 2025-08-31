@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Set up event listeners
     setupEventListeners();
     
+    // Setup mobile navigation
+    setupMobileNavigation();
+    
     // Update week header with current date
     updateWeekHeader();
 });
@@ -658,8 +661,39 @@ function setupGoalCellListeners(goalCell) {
     goalCell.addEventListener('input', debounce(saveToLocalStorage, 1000));
     goalCell.addEventListener('blur', saveToLocalStorage);
     
-    // Add click handler for checkbox functionality
+    // Enhanced touch and click support for checkbox
+    let touchStartX = null;
+    let touchStartTime = null;
+    
+    // Touch start - record position and time
+    goalCell.addEventListener('touchstart', function(e) {
+        const touch = e.touches[0];
+        const rect = goalCell.getBoundingClientRect();
+        touchStartX = touch.clientX - rect.left;
+        touchStartTime = Date.now();
+    }, { passive: true });
+    
+    // Touch end - handle checkbox toggle
+    goalCell.addEventListener('touchend', function(e) {
+        if (touchStartX !== null && touchStartTime !== null) {
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // Quick tap on checkbox area (< 300ms, left 30px)
+            if (touchDuration < 300 && touchStartX <= 30) {
+                e.preventDefault();
+                toggleGoalCompletion(goalCell);
+            }
+            
+            touchStartX = null;
+            touchStartTime = null;
+        }
+    });
+    
+    // Mouse click handler for desktop
     goalCell.addEventListener('click', function(e) {
+        // Skip if this was triggered by touch
+        if (e.detail === 0) return;
+        
         // Check if clicked on the checkbox area (left 30px of cell)
         const rect = goalCell.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
@@ -670,7 +704,7 @@ function setupGoalCellListeners(goalCell) {
         }
     });
     
-    // Prevent editing when clicking checkbox area
+    // Prevent editing when touching/clicking checkbox area
     goalCell.addEventListener('mousedown', function(e) {
         const rect = goalCell.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
@@ -679,6 +713,24 @@ function setupGoalCellListeners(goalCell) {
             e.preventDefault();
         }
     });
+    
+    // Mobile-specific improvements
+    if (isMobile()) {
+        // Prevent accidental zoom on double-tap
+        goalCell.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        });
+        
+        // Better focus handling for mobile keyboards
+        goalCell.addEventListener('focus', function() {
+            // Small delay to ensure keyboard is shown before scrolling
+            setTimeout(() => {
+                goalCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        });
+    }
 }
 
 function toggleGoalCompletion(goalCell) {
@@ -697,6 +749,88 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// Mobile detection function
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+           window.matchMedia('(max-width: 768px)').matches;
+}
+
+// Enhanced mobile navigation
+function setupMobileNavigation() {
+    if (isMobile()) {
+        // Add swipe navigation for weeks
+        let startX = null;
+        let startY = null;
+        
+        document.addEventListener('touchstart', function(e) {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', function(e) {
+            if (!startX || !startY) return;
+            
+            const diffX = e.touches[0].clientX - startX;
+            const diffY = e.touches[0].clientY - startY;
+            
+            // Prevent default if this is a horizontal swipe
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchend', function(e) {
+            if (!startX || !startY) return;
+            
+            const diffX = e.changedTouches[0].clientX - startX;
+            const diffY = e.changedTouches[0].clientY - startY;
+            
+            // Horizontal swipe detection (min 50px, max 30° angle)
+            if (Math.abs(diffX) > 50 && Math.abs(diffY) < Math.abs(diffX) * 0.5) {
+                if (diffX > 0) {
+                    // Swipe right - previous week
+                    navigateWeek(-1);
+                } else {
+                    // Swipe left - next week
+                    navigateWeek(1);
+                }
+            }
+            
+            startX = null;
+            startY = null;
+        });
+        
+        // Add mobile-friendly context menu positioning
+        const originalShowContextMenu = showContextMenu;
+        window.showContextMenu = function(event, roleCell) {
+            // For mobile, center the context menu
+            const rect = roleCell.getBoundingClientRect();
+            const fakeEvent = {
+                pageX: rect.left + rect.width / 2,
+                pageY: rect.top + rect.height / 2
+            };
+            originalShowContextMenu.call(this, fakeEvent, roleCell);
+        };
+        
+        // Better mobile keyboard handling
+        let initialViewportHeight = window.innerHeight;
+        
+        window.addEventListener('resize', function() {
+            const currentHeight = window.innerHeight;
+            const heightDifference = initialViewportHeight - currentHeight;
+            
+            // Keyboard is likely open if height decreased by more than 150px
+            if (heightDifference > 150) {
+                document.body.classList.add('keyboard-open');
+            } else {
+                document.body.classList.remove('keyboard-open');
+                initialViewportHeight = currentHeight;
+            }
+        });
+    }
 }
 
 function rgbToHex(rgb) {
