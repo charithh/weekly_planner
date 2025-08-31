@@ -9,6 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#007bff">
     <title>Weekly Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
     <link rel="stylesheet" href="styles.css">
     
     <!-- Firebase SDK v9 modular -->
@@ -46,6 +47,7 @@
                 <button id="removeRole" class="btn btn-secondary">- Remove Role</button>
                 <button id="removeGoal" class="btn btn-secondary">- Remove Goal Column</button>
                 <button id="todayButton" class="btn btn-secondary">Today</button>
+                <button id="reminderSettings" class="btn btn-secondary">🔔 Reminders</button>
                 <button id="hideControls" class="btn btn-hide">✕ Hide</button>
             </div>
         </header>
@@ -122,6 +124,53 @@
             </table>
         </div>
     </div>
+
+    <!-- Reminder Settings Modal -->
+    <div id="reminderModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔔 Daily Goal Reminders</h2>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="notification-status" id="notificationStatus">
+                    <p>🔕 Notifications are disabled</p>
+                    <button id="enableNotifications" class="btn btn-primary">Enable Notifications</button>
+                </div>
+                <div class="reminder-settings" id="reminderSettingsPanel" style="display: none;">
+                    <div class="setting-group">
+                        <label for="reminderTime">Reminder Time:</label>
+                        <input type="time" id="reminderTime" value="09:00">
+                    </div>
+                    <div class="setting-group">
+                        <label>Days to remind:</label>
+                        <div class="days-selector">
+                            <label><input type="checkbox" id="mon" checked> Mon</label>
+                            <label><input type="checkbox" id="tue" checked> Tue</label>
+                            <label><input type="checkbox" id="wed" checked> Wed</label>
+                            <label><input type="checkbox" id="thu" checked> Thu</label>
+                            <label><input type="checkbox" id="fri" checked> Fri</label>
+                            <label><input type="checkbox" id="sat"> Sat</label>
+                            <label><input type="checkbox" id="sun"> Sun</label>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="enableReminders" checked>
+                            Enable daily reminders
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="saveReminders" class="btn btn-primary">Save Settings</button>
+                        <button id="testNotification" class="btn btn-secondary">Test Notification</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-Page Notification System -->
+    <div id="inPageNotifications" class="in-page-notifications"></div>
     
     <script type="module" src="firebase-service.js"></script>
     <script src="script.js"></script>

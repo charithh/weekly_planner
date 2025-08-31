@@ -1,6 +1,8 @@
 // Global variable to track current week
 let currentWeekStart = null;
 let isFirebaseReady = false;
+let notificationPermission = false;
+let reminderIntervals = [];
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Initialize current week to today's week
@@ -20,6 +22,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Initialize controls as hidden
     initializeControls();
+    
+    // Initialize notifications
+    await initializeNotifications();
     
     // Update week header with current date
     updateWeekHeader();
@@ -123,6 +128,11 @@ function setupEventListeners() {
     
     document.getElementById('hideControls').addEventListener('click', function() {
         toggleControls(false);
+    });
+    
+    // Reminder settings button
+    document.getElementById('reminderSettings').addEventListener('click', function() {
+        openReminderModal();
     });
     
     // Hide context menu on click outside
@@ -1004,3 +1014,316 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+
+// Notification Functions
+async function initializeNotifications() {
+    console.log('Initializing notifications...');
+    
+    if ('Notification' in window) {
+        console.log('Initial notification permission:', Notification.permission);
+        notificationPermission = Notification.permission === 'granted';
+        console.log('notificationPermission initialized to:', notificationPermission);
+        
+        await loadReminderSettings();
+        setupModalEventListeners();
+    } else {
+        console.log('Notifications not supported');
+    }
+}
+
+function setupModalEventListeners() {
+    // Close modal
+    document.getElementById('closeModal').addEventListener('click', closeReminderModal);
+    document.getElementById('reminderModal').addEventListener('click', function(e) {
+        if (e.target.id === 'reminderModal') {
+            closeReminderModal();
+        }
+    });
+    
+    // Enable notifications button
+    document.getElementById('enableNotifications').addEventListener('click', async function() {
+        await requestNotificationPermission();
+    });
+    
+    // Save settings button
+    document.getElementById('saveReminders').addEventListener('click', function() {
+        saveReminderSettings();
+    });
+    
+    // Test notification button
+    document.getElementById('testNotification').addEventListener('click', function() {
+        showTestNotification();
+    });
+}
+
+async function requestNotificationPermission() {
+    console.log('Requesting notification permission...');
+    console.log('Notification support:', 'Notification' in window);
+    console.log('Current permission:', Notification.permission);
+    
+    if ('Notification' in window) {
+        try {
+            const permission = await Notification.requestPermission();
+            console.log('Permission result:', permission);
+            notificationPermission = permission === 'granted';
+            console.log('notificationPermission set to:', notificationPermission);
+            
+            updateNotificationStatus();
+            
+            if (notificationPermission) {
+                scheduleReminders();
+                // Test notification immediately after granting permission
+                setTimeout(() => {
+                    showNotification('🎉 Notifications Enabled!', 'You will now receive daily goal reminders.', 'success');
+                }, 500);
+            }
+        } catch (error) {
+            console.error('Error requesting notification permission:', error);
+        }
+    } else {
+        console.log('Notifications not supported in this browser');
+        alert('Notifications are not supported in this browser.');
+    }
+}
+
+function updateNotificationStatus() {
+    const statusDiv = document.getElementById('notificationStatus');
+    const settingsDiv = document.getElementById('reminderSettingsPanel');
+    
+    if (notificationPermission) {
+        statusDiv.style.display = 'none';
+        settingsDiv.style.display = 'block';
+    } else {
+        statusDiv.style.display = 'block';
+        settingsDiv.style.display = 'none';
+        
+        const statusText = statusDiv.querySelector('p');
+        if (Notification.permission === 'denied') {
+            statusText.textContent = '🚫 Notifications are blocked. Please enable them in your browser settings.';
+            statusDiv.querySelector('button').style.display = 'none';
+        } else {
+            statusText.textContent = '🔕 Notifications are disabled';
+            statusDiv.querySelector('button').style.display = 'block';
+        }
+    }
+}
+
+function openReminderModal() {
+    updateNotificationStatus();
+    document.getElementById('reminderModal').style.display = 'block';
+}
+
+function closeReminderModal() {
+    document.getElementById('reminderModal').style.display = 'none';
+}
+
+async function loadReminderSettings() {
+    let settings = null;
+    
+    if (isFirebaseReady && window.FirebaseService) {
+        // Try to load from Firebase (future enhancement)
+        settings = null;
+    } else {
+        const saved = localStorage.getItem('reminderSettings');
+        settings = saved ? JSON.parse(saved) : null;
+    }
+    
+    if (settings) {
+        document.getElementById('reminderTime').value = settings.time || '09:00';
+        document.getElementById('enableReminders').checked = settings.enabled !== false;
+        
+        // Set day checkboxes
+        const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        days.forEach(day => {
+            const checkbox = document.getElementById(day);
+            checkbox.checked = settings.days ? settings.days[day] : (day !== 'sat' && day !== 'sun');
+        });
+    }
+    
+    if (notificationPermission) {
+        scheduleReminders();
+    }
+}
+
+function saveReminderSettings() {
+    console.log('Saving reminder settings...'); // Debug log
+    
+    try {
+        const settings = {
+            time: document.getElementById('reminderTime').value,
+            enabled: document.getElementById('enableReminders').checked,
+            days: {
+                mon: document.getElementById('mon').checked,
+                tue: document.getElementById('tue').checked,
+                wed: document.getElementById('wed').checked,
+                thu: document.getElementById('thu').checked,
+                fri: document.getElementById('fri').checked,
+                sat: document.getElementById('sat').checked,
+                sun: document.getElementById('sun').checked
+            }
+        };
+        
+        console.log('Settings to save:', settings); // Debug log
+        
+        // Save to localStorage for now
+        localStorage.setItem('reminderSettings', JSON.stringify(settings));
+        
+        // Reschedule reminders
+        if (notificationPermission) {
+            scheduleReminders();
+        }
+        
+        closeReminderModal();
+        
+        // Show confirmation
+        showNotification('✅ Reminder Settings Saved', 'Your daily goal reminders have been updated!', 'success');
+        
+    } catch (error) {
+        console.error('Error saving reminder settings:', error);
+        alert('Error saving settings. Please try again.');
+    }
+}
+
+function scheduleReminders() {
+    // Clear existing intervals
+    reminderIntervals.forEach(interval => clearInterval(interval));
+    reminderIntervals = [];
+    
+    const settings = JSON.parse(localStorage.getItem('reminderSettings') || '{}');
+    
+    if (!settings.enabled || !notificationPermission) return;
+    
+    const reminderTime = settings.time || '09:00';
+    const [hours, minutes] = reminderTime.split(':').map(Number);
+    
+    // Schedule daily check
+    const checkInterval = setInterval(() => {
+        const now = new Date();
+        const currentDay = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][now.getDay()];
+        
+        if (settings.days && settings.days[currentDay] && 
+            now.getHours() === hours && 
+            now.getMinutes() === minutes) {
+            showDailyReminder();
+        }
+    }, 60000); // Check every minute
+    
+    reminderIntervals.push(checkInterval);
+}
+
+function showDailyReminder() {
+    const incompleteTasks = getIncompleteTasks();
+    const taskCount = incompleteTasks.length;
+    
+    let message = '';
+    if (taskCount === 0) {
+        message = '🎉 Great job! All your goals for this week are complete!';
+    } else {
+        message = `📋 You have ${taskCount} incomplete goal${taskCount > 1 ? 's' : ''} for this week.`;
+    }
+    
+    showNotification('🎯 Daily Goal Reminder', message);
+}
+
+function getIncompleteTasks() {
+    const incompleteTasks = [];
+    
+    // Check main planner goals
+    const goalCells = document.querySelectorAll('.goal-cell');
+    goalCells.forEach(cell => {
+        if (cell.textContent.trim() && !cell.classList.contains('completed')) {
+            incompleteTasks.push(cell.textContent.trim());
+        }
+    });
+    
+    return incompleteTasks;
+}
+
+function showNotification(title, body, type = 'info') {
+    console.log('showNotification called:', { title, body, permission: notificationPermission }); // Debug log
+    
+    // Always show in-page notification as primary method
+    showInPageNotification(title, body, type);
+    
+    // Try browser notification as backup (if permission granted)
+    if (notificationPermission) {
+        try {
+            const notification = new Notification(title, {
+                body: body,
+                tag: 'weekly-planner-reminder',
+                requireInteraction: false
+            });
+            
+            notification.onclick = function() {
+                window.focus();
+                notification.close();
+            };
+            
+            // Auto-close after 5 seconds
+            setTimeout(() => notification.close(), 5000);
+            
+            console.log('Browser notification created successfully');
+        } catch (error) {
+            console.error('Error creating browser notification:', error);
+        }
+    }
+}
+
+function showInPageNotification(title, body, type = 'info') {
+    const container = document.getElementById('inPageNotifications');
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `in-page-notification ${type}`;
+    notification.innerHTML = `
+        <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+        <div class="notification-title">${title}</div>
+        <div class="notification-body">${body}</div>
+    `;
+    
+    // Add to container
+    container.appendChild(notification);
+    
+    // Click to dismiss
+    notification.addEventListener('click', function(e) {
+        if (e.target.classList.contains('notification-close')) return;
+        notification.remove();
+        window.focus();
+    });
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.animation = 'slideInNotification 0.3s ease-in reverse';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 5000);
+    
+    console.log('In-page notification created:', title);
+}
+
+function showTestNotification() {
+    console.log('=== TEST NOTIFICATION CLICKED ===');
+    console.log('notificationPermission variable:', notificationPermission);
+    console.log('Notification.permission:', Notification.permission);
+    console.log('Notification support:', 'Notification' in window);
+    
+    // Double-check permission state
+    const actualPermission = Notification.permission === 'granted';
+    console.log('Actual permission granted:', actualPermission);
+    
+    // Update our variable if it's out of sync
+    if (actualPermission !== notificationPermission) {
+        console.log('Permission state was out of sync, updating...');
+        notificationPermission = actualPermission;
+        updateNotificationStatus();
+    }
+    
+    if (!actualPermission) {
+        alert('⚠️ Notifications are not enabled. Please click "Enable Notifications" first and allow when prompted.');
+        return;
+    }
+    
+    console.log('Creating test notification...');
+    showNotification('🔔 Test Notification', 'This is how your daily goal reminders will look!');
+}
