@@ -25,7 +25,7 @@
     <div class="container">
         <header>
             <div class="week-selector">
-                <button id="prevWeek" class="btn btn-nav">‹ Previous</button>
+                <button id="prevWeek" class="btn btn-nav">‹ Prev</button>
                 <div class="week-picker">
                     <h1 id="weekHeader" class="clickable-header">WEEK OF: [DAY OF SUNDAY/ MONTH/YEAR]</h1>
                     <input type="date" id="datePicker" class="date-picker" style="display: none;">
@@ -35,13 +35,18 @@
                     <span id="syncIndicator" class="sync-indicator offline">●</span>
                     <span id="syncText">Offline</span>
                 </div>
+                <button id="toggleControls" class="btn btn-controls-toggle" title="Show/Hide Controls">
+                    <span class="toggle-icon">⚙️</span>
+                    <span class="toggle-text">Controls</span>
+                </button>
             </div>
-            <div class="controls">
+            <div class="controls" id="controlsPanel">
                 <button id="addRole" class="btn btn-primary">+ Add Role</button>
                 <button id="addGoal" class="btn btn-primary">+ Add Goal Column</button>
                 <button id="removeRole" class="btn btn-secondary">- Remove Role</button>
                 <button id="removeGoal" class="btn btn-secondary">- Remove Goal Column</button>
                 <button id="todayButton" class="btn btn-secondary">Today</button>
+                <button id="hideControls" class="btn btn-hide">✕ Hide</button>
             </div>
         </header>
         
@@ -109,6 +114,7 @@
                 <tbody>
                     <tr class="role-row">
                         <td class="role-cell sharpen-saw">SHARPEN THE SAW</td>
+                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                         <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                         <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
                     </tr>

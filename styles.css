@@ -118,11 +118,78 @@ header h1 {
     100% { opacity: 1; }
 }
 
+/* Controls Toggle Button */
+.btn-controls-toggle {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+}
+
+.btn-controls-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+}
+
+.toggle-icon {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+}
+
+.btn-controls-toggle:hover .toggle-icon {
+    transform: rotate(180deg);
+}
+
+.toggle-text {
+    font-weight: 500;
+}
+
+/* Controls Panel */
 .controls {
     display: flex;
     justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
+    margin-top: 15px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 12px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    transform-origin: top;
+    overflow: hidden;
+    max-height: 200px;
+}
+
+.controls.hidden {
+    max-height: 0;
+    padding: 0 15px;
+    margin-top: 0;
+    opacity: 0;
+    transform: scaleY(0);
+}
+
+.btn-hide {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-hide:hover {
+    background-color: #545b62;
 }
 
 .btn {
@@ -296,6 +363,17 @@ header h1 {
     margin-top: 30px;
 }
 
+/* Mobile sharpen section */
+@media (max-width: 480px) {
+    .sharpen-section {
+        margin-top: 20px;
+    }
+    
+    .sharpen-section .planner-table {
+        background: linear-gradient(135deg, #fff3cd, #ffff66);
+    }
+}
+
 .sharpen-section .planner-table {
     margin-bottom: 0;
 }
@@ -305,17 +383,29 @@ header h1 {
 /* Small mobile devices */
 @media (max-width: 480px) {
     body {
-        padding: 5px;
+        padding: 0;
         font-size: 14px;
+        height: 100vh;
+        overflow: hidden;
     }
     
     .container {
         border-radius: 0;
         margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
     
     header {
         padding: 15px 10px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: white;
+        border-bottom: 2px solid #ddd;
     }
     
     .week-selector {
@@ -348,6 +438,13 @@ header h1 {
         flex-direction: column;
         gap: 8px;
         margin-top: 15px;
+        max-height: 300px;
+    }
+    
+    .controls.hidden {
+        max-height: 0;
+        padding: 0;
+        margin-top: 0;
     }
     
     .btn {
@@ -358,31 +455,81 @@ header h1 {
     }
     
     .planner-container {
-        margin: 10px 5px;
-        overflow-x: auto;
+        flex: 1;
+        margin: 0;
+        padding: 10px;
+        overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        background: #f8f9fa;
     }
     
     .planner-table {
-        min-width: 600px;
+        width: 100%;
+        min-width: unset;
         font-size: 12px;
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .planner-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: white;
     }
     
     .role-cell {
-        width: 120px;
-        min-height: 60px;
-        padding: 8px;
-        font-size: 11px;
+        width: 100%;
+        min-height: 50px;
+        padding: 15px;
+        font-size: 14px;
         line-height: 1.2;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 6px 6px 0 0;
+    }
+    
+    .role-cell::before {
+        content: none;
     }
     
     .goal-cell {
-        min-width: 100px;
+        min-width: unset;
+        width: 100%;
         min-height: 60px;
-        padding: 8px;
+        padding: 12px 8px;
         padding-left: 30px;
         font-size: 12px;
         line-height: 1.3;
+        display: block;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    /* Stack goals vertically on mobile */
+    .planner-table tr {
+        display: block;
+        border: none;
+        margin-bottom: 10px;
+        background: white;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .planner-table td {
+        display: block;
+        border: none;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .planner-table td:last-child {
+        border-bottom: none;
+    }
+    
+    .planner-table thead tr {
+        display: none;
     }
     
     .goal-cell::before {
@@ -423,14 +570,25 @@ header h1 {
 @media (min-width: 481px) and (max-width: 768px) {
     body {
         padding: 8px;
+        height: 100vh;
+        overflow: hidden;
     }
     
     .container {
         border-radius: 4px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
     
     header {
         padding: 18px 15px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: white;
     }
     
     .week-selector {
@@ -461,9 +619,12 @@ header h1 {
     }
     
     .planner-container {
-        margin: 15px 10px;
-        overflow-x: auto;
+        flex: 1;
+        margin: 0;
+        padding: 15px;
+        overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        background: #f8f9fa;
     }
     
     .role-cell {
@@ -526,23 +687,25 @@ header h1 {
         font-size: 16px;
     }
     
-    /* Better scroll indicators */
+    /* Mobile scroll improvements */
     .planner-container {
-        border-left: 3px solid #007bff;
-        border-right: 3px solid #007bff;
+        padding-bottom: 20px;
     }
     
     .planner-container::before {
-        content: "← Scroll to see all goals →";
+        content: "↕ Scroll to see all roles";
         display: block;
         text-align: center;
         color: #6c757d;
         font-size: 11px;
-        padding: 5px;
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        margin-bottom: 10px;
+        padding: 8px;
+        background: rgba(0,123,255,0.1);
+        border: 1px solid rgba(0,123,255,0.2);
+        border-radius: 20px;
+        margin-bottom: 15px;
+        position: sticky;
+        top: 10px;
+        z-index: 5;
     }
 }
 

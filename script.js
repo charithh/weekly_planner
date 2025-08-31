@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Setup mobile navigation
     setupMobileNavigation();
     
+    // Initialize controls as hidden
+    initializeControls();
+    
     // Update week header with current date
     updateWeekHeader();
 });
@@ -113,6 +116,15 @@ function setupEventListeners() {
         document.getElementById('weekHeader').style.display = 'block';
     });
     
+    // Controls toggle functionality
+    document.getElementById('toggleControls').addEventListener('click', function() {
+        toggleControls(true);
+    });
+    
+    document.getElementById('hideControls').addEventListener('click', function() {
+        toggleControls(false);
+    });
+    
     // Hide context menu on click outside
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.context-menu')) {
@@ -204,6 +216,12 @@ function addGoalColumn() {
         sharpenCell.contentEditable = true;
         setupGoalCellListeners(sharpenCell);
         sharpenRow.appendChild(sharpenCell);
+        
+        // Ensure sharpen role cell maintains editing functionality
+        const sharpenRoleCell = sharpenRow.querySelector('.role-cell.sharpen-saw');
+        if (sharpenRoleCell) {
+            setupRoleEditingForCell(sharpenRoleCell);
+        }
     }
     
     saveToLocalStorage();
@@ -229,6 +247,12 @@ function removeGoalColumn() {
             const sharpenRow = document.querySelector('.sharpen-section tbody tr');
             if (sharpenRow && sharpenRow.children.length > 2) {
                 sharpenRow.removeChild(sharpenRow.lastElementChild);
+                
+                // Ensure sharpen role cell maintains editing functionality
+                const sharpenRoleCell = sharpenRow.querySelector('.role-cell.sharpen-saw');
+                if (sharpenRoleCell) {
+                    setupRoleEditingForCell(sharpenRoleCell);
+                }
             }
             
             saveToLocalStorage();
@@ -455,6 +479,9 @@ function loadPlannerData(plannerData) {
             });
         }
         
+        // Re-setup role editing listeners after loading data
+        setupRoleEditingListeners();
+        
     } catch (error) {
         console.error('Error loading planner data:', error);
     }
@@ -496,6 +523,12 @@ function setupRoleEditingListeners() {
     roleCells.forEach(cell => {
         setupRoleEditingForCell(cell);
     });
+    
+    // Explicitly setup SHARPEN THE SAW cell
+    const sharpenCell = document.querySelector('.role-cell.sharpen-saw');
+    if (sharpenCell) {
+        setupRoleEditingForCell(sharpenCell);
+    }
 }
 
 function setupRoleEditingForCell(roleCell) {
@@ -727,7 +760,18 @@ function setupGoalCellListeners(goalCell) {
         goalCell.addEventListener('focus', function() {
             // Small delay to ensure keyboard is shown before scrolling
             setTimeout(() => {
-                goalCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const container = document.querySelector('.planner-container');
+                const rect = goalCell.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                // Scroll the container to bring the element into view
+                if (rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
+                    goalCell.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                }
             }, 300);
         });
     }
@@ -864,5 +908,48 @@ document.addEventListener('keydown', function(e) {
     // Hide context menu on Escape
     if (e.key === 'Escape') {
         hideContextMenu();
+    }
+});
+
+// Controls management functions
+function initializeControls() {
+    const controlsPanel = document.getElementById('controlsPanel');
+    controlsPanel.classList.add('hidden');
+}
+
+function toggleControls(show) {
+    const controlsPanel = document.getElementById('controlsPanel');
+    const toggleButton = document.getElementById('toggleControls');
+    const toggleIcon = toggleButton.querySelector('.toggle-icon');
+    const toggleText = toggleButton.querySelector('.toggle-text');
+    
+    if (show) {
+        controlsPanel.classList.remove('hidden');
+        toggleIcon.textContent = '⚙️';
+        toggleText.textContent = 'Controls';
+        
+        // Auto-hide after 10 seconds if not interacted with
+        setTimeout(() => {
+            if (!controlsPanel.matches(':hover')) {
+                toggleControls(false);
+            }
+        }, 10000);
+        
+    } else {
+        controlsPanel.classList.add('hidden');
+        toggleIcon.textContent = '⚙️';
+        toggleText.textContent = 'Controls';
+    }
+}
+
+// Auto-hide controls when clicking outside
+document.addEventListener('click', function(e) {
+    const controlsPanel = document.getElementById('controlsPanel');
+    const toggleButton = document.getElementById('toggleControls');
+    
+    if (!controlsPanel.contains(e.target) && !toggleButton.contains(e.target)) {
+        if (!controlsPanel.classList.contains('hidden')) {
+            toggleControls(false);
+        }
     }
 });
