@@ -230,6 +230,17 @@ export async function deleteAllFirebaseData() {
             console.log('ℹ️ No structure template to delete');
         }
         
+        // Delete all weekly reviews
+        const reviewsRef = collection(db, 'weekly-reviews');
+        const reviewsSnapshot = await getDocs(reviewsRef);
+        
+        console.log(`Found ${reviewsSnapshot.docs.length} weekly reviews to delete`);
+        
+        for (const docSnapshot of reviewsSnapshot.docs) {
+            await deleteDoc(doc(db, 'weekly-reviews', docSnapshot.id));
+            console.log(`✅ Deleted weekly review: ${docSnapshot.id}`);
+        }
+        
         console.log('🎉 Firebase data deletion complete!');
         updateSyncStatus('online', 'Reset complete');
         return true;
@@ -241,6 +252,158 @@ export async function deleteAllFirebaseData() {
     }
 }
 
+// Save weekly review results
+export async function saveWeeklyReview(weekKey, reviewData) {
+    if (!db) {
+        console.warn('Firebase not initialized, saving review to localStorage');
+        localStorage.setItem(`weeklyReview-${weekKey}`, JSON.stringify(reviewData));
+        return;
+    }
+
+    try {
+        updateSyncStatus('syncing', 'Saving review...');
+        
+        // Import required Firestore functions
+        const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const docRef = doc(db, 'weekly-reviews', weekKey);
+        await setDoc(docRef, {
+            ...reviewData,
+            savedAt: new Date(),
+            version: '1.0'
+        });
+        
+        updateSyncStatus('online', 'Review saved');
+        
+        // Also save to localStorage as backup
+        localStorage.setItem(`weeklyReview-${weekKey}`, JSON.stringify(reviewData));
+        
+        setTimeout(() => {
+            updateSyncStatus('online', 'Connected');
+        }, 2000);
+        
+        console.log('✅ Weekly review saved to Firebase:', weekKey);
+        return true;
+        
+    } catch (error) {
+        console.error('Error saving weekly review to Firebase:', error);
+        updateSyncStatus('error', 'Review save failed');
+        
+        // Fallback to localStorage
+        localStorage.setItem(`weeklyReview-${weekKey}`, JSON.stringify(reviewData));
+        return false;
+    }
+}
+
+// Load weekly review results
+export async function loadWeeklyReview(weekKey) {
+    if (!db) {
+        console.warn('Firebase not initialized, loading review from localStorage');
+        const saved = localStorage.getItem(`weeklyReview-${weekKey}`);
+        return saved ? JSON.parse(saved) : null;
+    }
+
+    try {
+        updateSyncStatus('syncing', 'Loading review...');
+        
+        // Import required Firestore functions
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const docRef = doc(db, 'weekly-reviews', weekKey);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            updateSyncStatus('online', 'Review loaded');
+            
+            // Also save to localStorage for offline access
+            localStorage.setItem(`weeklyReview-${weekKey}`, JSON.stringify(data));
+            
+            setTimeout(() => {
+                updateSyncStatus('online', 'Connected');
+            }, 1000);
+            
+            console.log('✅ Weekly review loaded from Firebase:', weekKey);
+            return data;
+        } else {
+            // Try localStorage as fallback
+            const saved = localStorage.getItem(`weeklyReview-${weekKey}`);
+            updateSyncStatus('online', 'Connected');
+            console.log('📦 Weekly review loaded from localStorage:', weekKey);
+            return saved ? JSON.parse(saved) : null;
+        }
+        
+    } catch (error) {
+        console.error('Error loading weekly review from Firebase:', error);
+        updateSyncStatus('error', 'Review load failed');
+        
+        // Fallback to localStorage
+        const saved = localStorage.getItem(`weeklyReview-${weekKey}`);
+        return saved ? JSON.parse(saved) : null;
+    }
+}
+
+// Get all weekly reviews for historical analysis
+export async function getAllWeeklyReviews() {
+    if (!db) {
+        console.warn('Firebase not initialized, loading reviews from localStorage');
+        const reviews = [];
+        const keys = Object.keys(localStorage);
+        const reviewKeys = keys.filter(key => key.startsWith('weeklyReview-'));
+        
+        reviewKeys.forEach(key => {
+            const data = localStorage.getItem(key);
+            if (data) {
+                reviews.push(JSON.parse(data));
+            }
+        });
+        
+        return reviews.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+    }
+
+    try {
+        updateSyncStatus('syncing', 'Loading reviews...');
+        
+        // Import required Firestore functions
+        const { collection, getDocs, orderBy, query } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        const reviewsRef = collection(db, 'weekly-reviews');
+        const q = query(reviewsRef, orderBy('weekStart', 'desc'));
+        const querySnapshot = await getDocs(q);
+        
+        const reviews = [];
+        querySnapshot.forEach((doc) => {
+            reviews.push({ id: doc.id, ...doc.data() });
+        });
+        
+        updateSyncStatus('online', 'Reviews loaded');
+        setTimeout(() => {
+            updateSyncStatus('online', 'Connected');
+        }, 1000);
+        
+        console.log(`✅ Loaded ${reviews.length} weekly reviews from Firebase`);
+        return reviews;
+        
+    } catch (error) {
+        console.error('Error loading weekly reviews from Firebase:', error);
+        updateSyncStatus('error', 'Reviews load failed');
+        
+        // Fallback to localStorage
+        const reviews = [];
+        const keys = Object.keys(localStorage);
+        const reviewKeys = keys.filter(key => key.startsWith('weeklyReview-'));
+        
+        reviewKeys.forEach(key => {
+            const data = localStorage.getItem(key);
+            if (data) {
+                reviews.push(JSON.parse(data));
+            }
+        });
+        
+        return reviews.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+    }
+}
+
 // Export for global access
 window.FirebaseService = {
     initFirebase,
@@ -249,5 +412,8 @@ window.FirebaseService = {
     saveStructureTemplate,
     loadStructureTemplate,
     listenToWeekChanges,
-    deleteAllFirebaseData
+    deleteAllFirebaseData,
+    saveWeeklyReview,
+    loadWeeklyReview,
+    getAllWeeklyReviews
 };

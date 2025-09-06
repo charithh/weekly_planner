@@ -1500,3 +1500,127 @@ header h1 {
         align-self: flex-end;
     }
 }
+
+/* Review Actions Styling */
+.review-actions {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.review-actions button {
+    min-width: 140px;
+}
+
+.review-status {
+    flex: 1;
+    margin-left: 10px;
+}
+
+.review-status span {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.review-status .checking {
+    background: #e2e3e5;
+    color: #6c757d;
+}
+
+.review-status .new {
+    background: #d4edda;
+    color: #155724;
+}
+
+.review-status .exists {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.review-status .saving {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.review-status .success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.review-status .fallback {
+    background: #ffeaa7;
+    color: #856404;
+}
+
+.review-status .local {
+    background: #e2e3e5;
+    color: #495057;
+}
+
+.review-status .error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.review-status .loading {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.review-status .empty {
+    background: #e2e3e5;
+    color: #6c757d;
+}
+
+.history-summary {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.history-stats {
+    background: #d1ecf1;
+    color: #0c5460;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.avg-completion {
+    background: #d4edda;
+    color: #155724;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+/* Mobile responsive for review actions */
+@media (max-width: 768px) {
+    .review-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .review-actions button {
+        min-width: auto;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .review-status {
+        margin-left: 0;
+        text-align: center;
+    }
+    
+    .history-summary {
+        flex-direction: column;
+        gap: 8px;
+    }
+}

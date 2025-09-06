@@ -735,6 +735,13 @@ async function resetAllData() {
         console.log(`✅ Removed localStorage key: ${key}`);
     });
     
+    // Also clear review data
+    const reviewKeys = keys.filter(key => key.startsWith('weeklyReview-'));
+    reviewKeys.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`✅ Removed review key: ${key}`);
+    });
+    
     // Clear Firebase
     if (isFirebaseReady && window.FirebaseService) {
         console.log('Clearing Firebase...');
@@ -1302,6 +1309,16 @@ function setupModalEventListeners() {
     document.getElementById('testNotification').addEventListener('click', function() {
         showTestNotification();
     });
+    
+    // Save review button
+    document.getElementById('saveReview').addEventListener('click', function() {
+        saveCurrentReview();
+    });
+    
+    // View history button
+    document.getElementById('viewHistory').addEventListener('click', function() {
+        showReviewHistory();
+    });
 }
 
 async function requestNotificationPermission() {
@@ -1587,12 +1604,7 @@ function closeReviewModal() {
     document.getElementById('reviewModal').style.display = 'none';
 }
 
-function generateWeekReview() {
-    console.log('🔍 Analyzing week data for review');
-    
-    const analytics = analyzeWeekData();
-    updateReviewUI(analytics);
-}
+// This function has been moved below with enhanced functionality
 
 function analyzeWeekData() {
     const analysis = {
@@ -1850,4 +1862,199 @@ function updateReviewUI(analytics) {
         `;
         insightsList.appendChild(insightItem);
     });
+}
+
+// Global variable to store current review data
+let currentReviewData = null;
+
+function generateWeekReview() {
+    console.log('🔍 Analyzing week data for review');
+    
+    const analytics = analyzeWeekData();
+    updateReviewUI(analytics);
+    
+    // Store the review data globally so it can be saved
+    currentReviewData = {
+        weekKey: getWeekKey(currentWeekStart),
+        weekStart: currentWeekStart.toISOString(),
+        timestamp: new Date().toISOString(),
+        analytics: {
+            totalGoals: analytics.totalGoals,
+            completedGoals: analytics.completedGoals,
+            inProgressGoals: analytics.inProgressGoals,
+            completionRate: analytics.totalGoals > 0 ? Math.round((analytics.completedGoals / analytics.totalGoals) * 100) : 0,
+            rolePerformance: analytics.roles.map(role => ({
+                name: role.name,
+                color: role.color,
+                totalGoals: role.totalGoals,
+                completedGoals: role.completedGoals,
+                completionRate: role.completionRate,
+                status: getPerformanceStatus(role.completionRate)
+            })),
+            insights: analytics.insights
+        }
+    };
+    
+    // Check if review already exists
+    checkExistingReview();
+}
+
+function getPerformanceStatus(completionRate) {
+    if (completionRate >= 80) return 'excellent';
+    if (completionRate >= 60) return 'good';
+    if (completionRate >= 40) return 'average';
+    return 'needs-attention';
+}
+
+async function checkExistingReview() {
+    if (!currentReviewData) return;
+    
+    const statusDiv = document.getElementById('reviewStatus');
+    statusDiv.innerHTML = '<span class="checking">🔍 Checking for existing review...</span>';
+    
+    try {
+        if (isFirebaseReady && window.FirebaseService) {
+            const existingReview = await window.FirebaseService.loadWeeklyReview(currentReviewData.weekKey);
+            if (existingReview) {
+                statusDiv.innerHTML = `
+                    <span class="exists">📝 Review saved on ${new Date(existingReview.timestamp).toLocaleDateString()}</span>
+                `;
+                document.getElementById('saveReview').textContent = '🔄 Update Review';
+            } else {
+                statusDiv.innerHTML = '<span class="new">✨ New review ready to save</span>';
+                document.getElementById('saveReview').textContent = '💾 Save Review';
+            }
+        } else {
+            // Check localStorage
+            const saved = localStorage.getItem(`weeklyReview-${currentReviewData.weekKey}`);
+            if (saved) {
+                const existingReview = JSON.parse(saved);
+                statusDiv.innerHTML = `
+                    <span class="exists">📝 Review saved locally on ${new Date(existingReview.timestamp).toLocaleDateString()}</span>
+                `;
+                document.getElementById('saveReview').textContent = '🔄 Update Review';
+            } else {
+                statusDiv.innerHTML = '<span class="new">✨ New review ready to save</span>';
+                document.getElementById('saveReview').textContent = '💾 Save Review';
+            }
+        }
+    } catch (error) {
+        console.error('Error checking existing review:', error);
+        statusDiv.innerHTML = '<span class="error">⚠️ Could not check existing review</span>';
+    }
+}
+
+async function saveCurrentReview() {
+    if (!currentReviewData) {
+        showNotification('⚠️ No Review Data', 'Please generate a review first', 'warning');
+        return;
+    }
+    
+    const saveButton = document.getElementById('saveReview');
+    const statusDiv = document.getElementById('reviewStatus');
+    
+    // Update UI to show saving state
+    saveButton.disabled = true;
+    saveButton.textContent = '💾 Saving...';
+    statusDiv.innerHTML = '<span class="saving">💾 Saving review...</span>';
+    
+    try {
+        let success = false;
+        
+        if (isFirebaseReady && window.FirebaseService) {
+            success = await window.FirebaseService.saveWeeklyReview(currentReviewData.weekKey, currentReviewData);
+            if (success) {
+                statusDiv.innerHTML = `
+                    <span class="success">✅ Review saved to Firebase at ${new Date().toLocaleTimeString()}</span>
+                `;
+                showNotification('✅ Review Saved', 'Your weekly review has been saved to Firebase', 'success');
+            } else {
+                statusDiv.innerHTML = `
+                    <span class="fallback">📦 Review saved locally (Firebase unavailable)</span>
+                `;
+                showNotification('📦 Review Saved Locally', 'Saved to local storage - will sync when online', 'info');
+            }
+        } else {
+            // Save to localStorage only
+            localStorage.setItem(`weeklyReview-${currentReviewData.weekKey}`, JSON.stringify(currentReviewData));
+            statusDiv.innerHTML = `
+                <span class="local">📦 Review saved locally at ${new Date().toLocaleTimeString()}</span>
+            `;
+            showNotification('📦 Review Saved', 'Your weekly review has been saved locally', 'success');
+            success = true;
+        }
+        
+        if (success) {
+            saveButton.textContent = '✅ Saved';
+            setTimeout(() => {
+                saveButton.textContent = '🔄 Update Review';
+                saveButton.disabled = false;
+            }, 2000);
+        }
+        
+    } catch (error) {
+        console.error('Error saving review:', error);
+        statusDiv.innerHTML = '<span class="error">❌ Failed to save review</span>';
+        showNotification('❌ Save Failed', 'Could not save review. Please try again.', 'error');
+        
+        saveButton.textContent = '💾 Save Review';
+        saveButton.disabled = false;
+    }
+}
+
+async function showReviewHistory() {
+    const statusDiv = document.getElementById('reviewStatus');
+    statusDiv.innerHTML = '<span class="loading">📚 Loading review history...</span>';
+    
+    try {
+        let reviews = [];
+        
+        if (isFirebaseReady && window.FirebaseService) {
+            reviews = await window.FirebaseService.getAllWeeklyReviews();
+        } else {
+            // Load from localStorage
+            const keys = Object.keys(localStorage);
+            const reviewKeys = keys.filter(key => key.startsWith('weeklyReview-'));
+            
+            reviewKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    reviews.push(JSON.parse(data));
+                }
+            });
+            
+            reviews.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
+        }
+        
+        if (reviews.length === 0) {
+            statusDiv.innerHTML = '<span class="empty">📝 No saved reviews found</span>';
+            showNotification('📝 No History', 'No saved reviews found. Save this review to start building your history!', 'info');
+            return;
+        }
+        
+        // Display history summary
+        const avgCompletion = Math.round(reviews.reduce((sum, review) => 
+            sum + review.analytics.completionRate, 0) / reviews.length);
+        
+        statusDiv.innerHTML = `
+            <div class="history-summary">
+                <span class="history-stats">📚 ${reviews.length} saved reviews</span>
+                <span class="avg-completion">📈 ${avgCompletion}% average completion</span>
+            </div>
+        `;
+        
+        // Show detailed history in notification
+        const historyText = reviews.slice(0, 5).map(review => {
+            const date = new Date(review.weekStart).toLocaleDateString();
+            return `${date}: ${review.analytics.completionRate}%`;
+        }).join('\n');
+        
+        showNotification('📚 Review History', 
+            `Recent reviews:\n${historyText}${reviews.length > 5 ? '\n...and more' : ''}`, 'info');
+        
+    } catch (error) {
+        console.error('Error loading review history:', error);
+        statusDiv.innerHTML = '<span class="error">❌ Failed to load history</span>';
+        showNotification('❌ Load Failed', 'Could not load review history', 'error');
+    }
 }
