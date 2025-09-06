@@ -56,17 +56,16 @@ async function initializeFirebase() {
 }
 
 function initializePlanner() {
-    // Auto-save functionality
-    const goalCells = document.querySelectorAll('.goal-cell');
-    goalCells.forEach(cell => {
-        setupGoalCellListeners(cell);
-    });
+    console.log('=== INITIALIZING PLANNER ===');
     
-    // Setup role editing functionality
-    setupRoleEditingListeners();
-    
-    // Load saved data
+    // Load saved data first - this will rebuild the entire structure dynamically
+    console.log('Loading saved data...');
     loadFromLocalStorage();
+    
+    // Note: Goal cell listeners and role editing listeners are now set up
+    // during the dynamic role creation in loadPlannerData()
+    
+    console.log('=== PLANNER INITIALIZATION COMPLETE ===');
 }
 
 function setupEventListeners() {
@@ -133,6 +132,11 @@ function setupEventListeners() {
     // Reminder settings button
     document.getElementById('reminderSettings').addEventListener('click', function() {
         openReminderModal();
+    });
+    
+    // Review week button
+    document.getElementById('reviewWeek').addEventListener('click', function() {
+        openReviewModal();
     });
     
     // Hide context menu on click outside
@@ -275,6 +279,8 @@ function getWeekKey(weekStart) {
 }
 
 async function saveToFirestore() {
+    console.log('Saving data - Firebase ready:', isFirebaseReady);
+    
     const plannerData = {
         roles: [],
         sharpenData: [],
@@ -284,12 +290,17 @@ async function saveToFirestore() {
     
     // Save main planner data
     const rows = document.querySelectorAll('#plannerBody .role-row');
-    rows.forEach(row => {
+    console.log('Found rows to save:', rows.length);
+    
+    rows.forEach((row, index) => {
         const roleCell = row.querySelector('.role-cell');
         const goalCells = row.querySelectorAll('.goal-cell');
+        const roleName = roleCell.textContent.trim();
+        
+        console.log(`Saving role ${index + 1}:`, roleName);
         
         const roleData = {
-            name: roleCell.textContent.trim(),
+            name: roleName,
             color: roleCell.style.backgroundColor || '',
             goals: Array.from(goalCells).map(cell => ({
                 text: cell.textContent.trim(),
@@ -299,6 +310,9 @@ async function saveToFirestore() {
         
         plannerData.roles.push(roleData);
     });
+    
+    console.log('Total roles being saved:', plannerData.roles.length);
+    console.log('Role names being saved:', plannerData.roles.map(r => r.name));
     
     // Save sharpen the saw data
     const sharpenRow = document.querySelector('.sharpen-section tbody tr');
@@ -313,39 +327,46 @@ async function saveToFirestore() {
     // Save data for current week
     const weekKey = getWeekKey(currentWeekStart);
     
+    // Always save to localStorage first as backup
+    localStorage.setItem(`weeklyPlanner-${weekKey}`, JSON.stringify(plannerData));
+    console.log('✅ Saved to localStorage:', weekKey);
+    console.log('📦 localStorage week data:', JSON.stringify(plannerData, null, 2));
+    
+    // Try Firebase if available
     if (isFirebaseReady && window.FirebaseService) {
-        await window.FirebaseService.saveWeekData(weekKey, plannerData);
+        try {
+            await window.FirebaseService.saveWeekData(weekKey, plannerData);
+            console.log('✅ Saved to Firebase:', weekKey);
+            console.log('🔥 Firebase week data:', JSON.stringify(plannerData, null, 2));
+        } catch (error) {
+            console.warn('❌ Firebase save failed, localStorage backup used:', error);
+            showNotification('⚠️ Offline Mode', 'Changes saved locally only. Firebase connection blocked.', 'warning');
+        }
     } else {
-        // Fallback to localStorage
-        localStorage.setItem(`weeklyPlanner-${weekKey}`, JSON.stringify(plannerData));
+        console.log('ℹ️ Using localStorage only (Firebase not ready)');
     }
     
-    // Also save general planner structure (roles without goals) for new weeks
-    // Only update structure if roles changed, not goal columns (to keep week independence)
-    let structureData = null;
+    // Save structure template
+    const newStructureData = {
+        roles: plannerData.roles.map(role => ({
+            name: role.name,
+            color: role.color,
+            goals: [] // Empty goals for structure template
+        })),
+        goalColumnsCount: 3 // Default goal column count for new weeks
+    };
     
+    // Save structure to localStorage
+    localStorage.setItem('weeklyPlanner-structure', JSON.stringify(newStructureData));
+    console.log('📦 localStorage structure template:', JSON.stringify(newStructureData, null, 2));
+    
+    // Try Firebase for structure
     if (isFirebaseReady && window.FirebaseService) {
-        structureData = await window.FirebaseService.loadStructureTemplate();
-    } else {
-        const saved = localStorage.getItem('weeklyPlanner-structure');
-        structureData = saved ? JSON.parse(saved) : null;
-    }
-    
-    // Create new structure template only if it doesn't exist or roles changed
-    if (!structureData || structureData.roles.length !== plannerData.roles.length) {
-        const newStructureData = {
-            roles: plannerData.roles.map(role => ({
-                name: role.name,
-                color: role.color,
-                goals: [] // Empty goals for structure template
-            })),
-            goalColumnsCount: 3 // Default goal column count for new weeks
-        };
-        
-        if (isFirebaseReady && window.FirebaseService) {
+        try {
             await window.FirebaseService.saveStructureTemplate(newStructureData);
-        } else {
-            localStorage.setItem('weeklyPlanner-structure', JSON.stringify(newStructureData));
+            console.log('🔥 Firebase structure template:', JSON.stringify(newStructureData, null, 2));
+        } catch (error) {
+            console.warn('❌ Firebase structure save failed, localStorage used:', error);
         }
     }
 }
@@ -357,37 +378,73 @@ function saveToLocalStorage() {
 
 async function loadWeekData() {
     const weekKey = getWeekKey(currentWeekStart);
+    console.log('Loading week data for:', weekKey);
     
     // Clear current data first
     clearCurrentWeekData();
     
     let weekData = null;
     
+    // Try Firebase first, then localStorage fallback
     if (isFirebaseReady && window.FirebaseService) {
-        weekData = await window.FirebaseService.loadWeekData(weekKey);
+        try {
+            console.log('🔥 Loading from Firebase:', weekKey);
+            weekData = await window.FirebaseService.loadWeekData(weekKey);
+            if (weekData) {
+                console.log('✅ Loaded from Firebase:', weekKey);
+                console.log('🔥 Firebase loaded data:', JSON.stringify(weekData, null, 2));
+            } else {
+                console.log('❌ No Firebase data found for:', weekKey);
+            }
+        } catch (error) {
+            console.warn('❌ Firebase load failed:', error);
+        }
     } else {
-        // Fallback to localStorage
-        const saved = localStorage.getItem(`weeklyPlanner-${weekKey}`);
-        weekData = saved ? JSON.parse(saved) : null;
+        console.log('❌ Firebase not ready');
+    }
+    
+    // Fallback to localStorage if Firebase didn't work
+    if (!weekData) {
+        console.log('📝 Fallback to localStorage');
+        const savedWeekData = localStorage.getItem(`weeklyPlanner-${weekKey}`);
+        if (savedWeekData) {
+            weekData = JSON.parse(savedWeekData);
+            console.log('📦 Loaded from localStorage:', weekKey);
+            console.log('📦 localStorage loaded data:', JSON.stringify(weekData, null, 2));
+        } else {
+            console.log('❌ No localStorage data found for:', weekKey);
+        }
     }
     
     if (weekData) {
         // Load data for this specific week
         loadPlannerData(weekData);
     } else {
+        console.log('No week data found, loading structure template...');
         // No data for this week, check if we have a structure template
         let structureData = null;
         
-        if (isFirebaseReady && window.FirebaseService) {
-            structureData = await window.FirebaseService.loadStructureTemplate();
-        } else {
-            const saved = localStorage.getItem('weeklyPlanner-structure');
-            structureData = saved ? JSON.parse(saved) : null;
+        // Try localStorage first for structure
+        const savedStructure = localStorage.getItem('weeklyPlanner-structure');
+        if (savedStructure) {
+            structureData = JSON.parse(savedStructure);
+            console.log('✅ Loaded structure from localStorage');
+            console.log('📦 localStorage structure loaded:', JSON.stringify(structureData, null, 2));
+        } else if (isFirebaseReady && window.FirebaseService) {
+            try {
+                structureData = await window.FirebaseService.loadStructureTemplate();
+                console.log('✅ Loaded structure from Firebase');
+                console.log('🔥 Firebase structure loaded:', JSON.stringify(structureData, null, 2));
+            } catch (error) {
+                console.warn('❌ Firebase structure load failed:', error);
+            }
         }
         
         if (structureData) {
             // Load structure with empty goals
             loadPlannerData(structureData);
+        } else {
+            console.log('No structure template found, using defaults');
         }
     }
 }
@@ -487,6 +544,7 @@ function removeGoalColumnFromStructure() {
 }
 
 function loadPlannerData(plannerData) {
+    console.log('🔄 Loading planner data:', JSON.stringify(plannerData, null, 2));
     try {
         // First, adjust the table structure if goal column count differs
         const currentGoalCount = document.querySelector('thead tr').children.length - 1;
@@ -496,28 +554,70 @@ function loadPlannerData(plannerData) {
             adjustTableStructure(savedGoalCount);
         }
         
-        // Load goals for existing roles
-        const rows = document.querySelectorAll('#plannerBody .role-row');
-        rows.forEach((row, index) => {
-            if (plannerData.roles[index]) {
-                const goalCells = row.querySelectorAll('.goal-cell');
-                goalCells.forEach((cell, goalIndex) => {
-                    if (plannerData.roles[index].goals[goalIndex]) {
-                        const goalData = plannerData.roles[index].goals[goalIndex];
+        // COMPLETELY REBUILD ROLE STRUCTURE FROM SAVED DATA
+        const tbody = document.getElementById('plannerBody');
+        
+        // Clear existing roles (but preserve structure)
+        tbody.innerHTML = '';
+        
+        if (plannerData.roles && plannerData.roles.length > 0) {
+            console.log(`🔄 Rebuilding ${plannerData.roles.length} roles from saved data`);
+            
+            // Recreate each role row from saved data
+            plannerData.roles.forEach((roleData, index) => {
+                console.log(`Creating role ${index + 1}:`, roleData.name);
+                
+                const newRow = document.createElement('tr');
+                newRow.className = 'role-row';
+                newRow.setAttribute('data-role', roleData.name.toLowerCase().replace(/\s+/g, '-'));
+                
+                // Create role cell
+                const roleCell = document.createElement('td');
+                roleCell.className = 'role-cell';
+                roleCell.textContent = roleData.name;
+                if (roleData.color) {
+                    roleCell.style.backgroundColor = roleData.color;
+                }
+                
+                // Setup role editing for this cell
+                setupRoleEditingForCell(roleCell);
+                newRow.appendChild(roleCell);
+                
+                // Create goal cells
+                for (let goalIndex = 0; goalIndex < savedGoalCount; goalIndex++) {
+                    const goalCell = document.createElement('td');
+                    goalCell.className = 'goal-cell';
+                    goalCell.contentEditable = true;
+                    goalCell.title = 'Click checkbox to mark complete';
+                    
+                    // Load goal data if it exists
+                    if (roleData.goals && roleData.goals[goalIndex]) {
+                        const goalData = roleData.goals[goalIndex];
                         if (typeof goalData === 'string') {
                             // Legacy format support
-                            cell.textContent = goalData;
+                            goalCell.textContent = goalData;
                         } else {
                             // New format with completion status
-                            cell.textContent = goalData.text;
+                            goalCell.textContent = goalData.text;
                             if (goalData.completed) {
-                                cell.classList.add('completed');
+                                goalCell.classList.add('completed');
                             }
                         }
                     }
-                });
-            }
-        });
+                    
+                    // Setup goal cell listeners
+                    setupGoalCellListeners(goalCell);
+                    newRow.appendChild(goalCell);
+                }
+                
+                tbody.appendChild(newRow);
+            });
+            
+        } else {
+            console.log('⚠️ No roles found in saved data, using default structure');
+            // If no saved roles, create a basic default structure
+            createDefaultRoleStructure(savedGoalCount);
+        }
         
         // Load sharpen the saw data
         const sharpenRow = document.querySelector('.sharpen-section tbody tr');
@@ -540,12 +640,50 @@ function loadPlannerData(plannerData) {
             });
         }
         
-        // Re-setup role editing listeners after loading data
-        setupRoleEditingListeners();
+        console.log('✅ Role structure completely rebuilt from saved data');
         
     } catch (error) {
         console.error('Error loading planner data:', error);
     }
+}
+
+function createDefaultRoleStructure(goalColumnsCount) {
+    console.log('🔄 Creating default role structure with', goalColumnsCount, 'goal columns');
+    
+    const defaultRoles = [
+        { name: 'Individual', color: '#a8c8ec' },
+        { name: 'Husband', color: '#b8d4b8' },
+        { name: 'Father', color: '#c8a8d8' },
+        { name: 'Engineering Manager', color: '#f4d1a4' }
+    ];
+    
+    const tbody = document.getElementById('plannerBody');
+    
+    defaultRoles.forEach(roleData => {
+        const newRow = document.createElement('tr');
+        newRow.className = 'role-row';
+        newRow.setAttribute('data-role', roleData.name.toLowerCase().replace(/\s+/g, '-'));
+        
+        // Create role cell
+        const roleCell = document.createElement('td');
+        roleCell.className = 'role-cell';
+        roleCell.textContent = roleData.name;
+        roleCell.style.backgroundColor = roleData.color;
+        setupRoleEditingForCell(roleCell);
+        newRow.appendChild(roleCell);
+        
+        // Create empty goal cells
+        for (let i = 0; i < goalColumnsCount; i++) {
+            const goalCell = document.createElement('td');
+            goalCell.className = 'goal-cell';
+            goalCell.contentEditable = true;
+            goalCell.title = 'Click checkbox to mark complete';
+            setupGoalCellListeners(goalCell);
+            newRow.appendChild(goalCell);
+        }
+        
+        tbody.appendChild(newRow);
+    });
 }
 
 function loadFromLocalStorage() {
@@ -579,38 +717,120 @@ function clearAllData() {
     }
 }
 
+// Reset all data (localStorage + Firebase)
+async function resetAllData() {
+    if (!confirm('🚨 RESET ALL DATA? This will delete everything from both localStorage and Firebase. This cannot be undone!')) {
+        return;
+    }
+    
+    console.log('🗑️ Starting complete data reset...');
+    
+    // Clear localStorage
+    console.log('Clearing localStorage...');
+    const keys = Object.keys(localStorage);
+    const weeklyPlannerKeys = keys.filter(key => key.startsWith('weeklyPlanner'));
+    
+    weeklyPlannerKeys.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`✅ Removed localStorage key: ${key}`);
+    });
+    
+    // Clear Firebase
+    if (isFirebaseReady && window.FirebaseService) {
+        console.log('Clearing Firebase...');
+        const success = await window.FirebaseService.deleteAllFirebaseData();
+        if (success) {
+            console.log('✅ Firebase data cleared');
+        } else {
+            console.warn('❌ Firebase clear failed');
+        }
+    }
+    
+    // Clear UI
+    const goalCells = document.querySelectorAll('.goal-cell');
+    goalCells.forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('completed');
+    });
+    
+    console.log('🎉 Complete data reset finished!');
+    showNotification('🗑️ Data Reset', 'All data cleared from localStorage and Firebase', 'success');
+}
+
+// Make it globally accessible for console use
+window.resetAllData = resetAllData;
+
 function setupRoleEditingListeners() {
+    console.log('=== SETTING UP ROLE EDITING LISTENERS ===');
     const roleCells = document.querySelectorAll('.role-cell');
-    roleCells.forEach(cell => {
+    console.log('Found role cells:', roleCells.length);
+    
+    roleCells.forEach((cell, index) => {
+        console.log(`Setting up role cell ${index + 1}:`, cell.textContent.trim());
         setupRoleEditingForCell(cell);
     });
     
     // Explicitly setup SHARPEN THE SAW cell
     const sharpenCell = document.querySelector('.role-cell.sharpen-saw');
     if (sharpenCell) {
+        console.log('Setting up SHARPEN THE SAW cell specifically');
         setupRoleEditingForCell(sharpenCell);
+    } else {
+        console.log('SHARPEN THE SAW cell not found');
     }
+    
+    console.log('=== ROLE EDITING SETUP COMPLETE ===');
 }
 
 function setupRoleEditingForCell(roleCell) {
+    console.log('Setting up role editing for cell:', roleCell.textContent.trim());
+    console.log('Role cell element:', roleCell);
+    console.log('Role cell classes:', roleCell.className);
+    
+    // Remove any existing listeners first to avoid duplicates
+    roleCell.removeEventListener('dblclick', roleCell._dblClickHandler);
+    roleCell.removeEventListener('contextmenu', roleCell._contextMenuHandler);
+    
     // Double-click to edit role name
-    roleCell.addEventListener('dblclick', function(e) {
+    roleCell._dblClickHandler = function(e) {
+        console.log('🖱️ DOUBLE-CLICK EVENT FIRED on role:', roleCell.textContent.trim());
+        console.log('Event details:', e);
         e.preventDefault();
+        e.stopPropagation();
         editRoleName(roleCell);
-    });
+    };
     
     // Right-click for context menu
-    roleCell.addEventListener('contextmenu', function(e) {
+    roleCell._contextMenuHandler = function(e) {
+        console.log('🖱️ RIGHT-CLICK EVENT FIRED on role:', roleCell.textContent.trim());
+        console.log('Event details:', e);
         e.preventDefault();
+        e.stopPropagation();
         showContextMenu(e, roleCell);
+    };
+    
+    roleCell.addEventListener('dblclick', roleCell._dblClickHandler);
+    roleCell.addEventListener('contextmenu', roleCell._contextMenuHandler);
+    
+    console.log('✅ Event listeners attached to:', roleCell.textContent.trim());
+    
+    // Add a test click listener to verify events are working
+    roleCell.addEventListener('click', function(e) {
+        console.log('👆 CLICK EVENT on role:', roleCell.textContent.trim());
     });
 }
 
 function editRoleName(roleCell) {
+    console.log('editRoleName called for:', roleCell.textContent.trim()); // Debug log
+    
     const currentName = roleCell.textContent.trim();
     const newName = prompt('Edit role name:', currentName);
     
+    console.log('User entered new name:', newName); // Debug log
+    
     if (newName && newName.trim() !== '' && newName !== currentName) {
+        console.log('Updating role name from', currentName, 'to', newName); // Debug log
+        
         // Handle sub-roles for Engineering Manager
         if (roleCell.querySelector('.sub-roles')) {
             const subRolesList = roleCell.querySelector('.sub-roles');
@@ -625,6 +845,9 @@ function editRoleName(roleCell) {
         parentRow.setAttribute('data-role', newName.toLowerCase().replace(/\s+/g, '-'));
         
         saveToLocalStorage();
+        showNotification('✅ Role Updated', `Role renamed to "${newName}"`, 'success');
+    } else {
+        console.log('Role name not changed or invalid'); // Debug log
     }
 }
 
@@ -634,11 +857,11 @@ function showContextMenu(event, roleCell) {
     const contextMenu = document.createElement('div');
     contextMenu.className = 'context-menu';
     contextMenu.innerHTML = `
-        <div class="context-menu-item" onclick="editRoleName(arguments[0])" data-role-cell="true">✏️ Edit Name</div>
-        <div class="context-menu-item" onclick="changeRoleColor(arguments[0])" data-role-cell="true">🎨 Change Color</div>
-        <div class="context-menu-item" onclick="duplicateRole(arguments[0])" data-role-cell="true">📋 Duplicate Role</div>
+        <div class="context-menu-item" data-action="editRoleName">✏️ Edit Name</div>
+        <div class="context-menu-item" data-action="changeRoleColor">🎨 Change Color</div>
+        <div class="context-menu-item" data-action="duplicateRole">📋 Duplicate Role</div>
         <hr class="context-menu-divider">
-        <div class="context-menu-item danger" onclick="deleteRole(arguments[0])" data-role-cell="true">🗑️ Delete Role</div>
+        <div class="context-menu-item danger" data-action="deleteRole">🗑️ Delete Role</div>
     `;
     
     // Position the menu
@@ -652,7 +875,9 @@ function showContextMenu(event, roleCell) {
     menuItems.forEach(item => {
         item.addEventListener('click', function(e) {
             e.stopPropagation();
-            const action = item.getAttribute('onclick').split('(')[0];
+            const action = item.getAttribute('data-action');
+            
+            console.log('Context menu action clicked:', action); // Debug log
             
             switch(action) {
                 case 'editRoleName':
@@ -742,12 +967,27 @@ function duplicateRole(roleCell) {
 }
 
 function deleteRole(roleCell) {
+    console.log('deleteRole called for:', roleCell.textContent.trim()); // Debug log
+    
     const parentRow = roleCell.closest('.role-row');
     const roleName = roleCell.textContent.trim();
     
+    console.log('Attempting to delete role:', roleName); // Debug log
+    console.log('Parent row found:', parentRow); // Debug log
+    
     if (confirm(`Delete role "${roleName}"? This will remove all associated goals.`)) {
+        console.log('User confirmed deletion, removing row'); // Debug log
         parentRow.remove();
-        saveToLocalStorage();
+        
+        // Add a small delay to ensure DOM is updated before saving
+        setTimeout(() => {
+            console.log('Saving after role deletion with delay...');
+            saveToLocalStorage();
+        }, 100);
+        
+        showNotification('🗑️ Role Deleted', `Role "${roleName}" has been removed`, 'warning');
+    } else {
+        console.log('User cancelled deletion'); // Debug log
     }
 }
 
@@ -1032,11 +1272,19 @@ async function initializeNotifications() {
 }
 
 function setupModalEventListeners() {
-    // Close modal
+    // Close reminder modal
     document.getElementById('closeModal').addEventListener('click', closeReminderModal);
     document.getElementById('reminderModal').addEventListener('click', function(e) {
         if (e.target.id === 'reminderModal') {
             closeReminderModal();
+        }
+    });
+    
+    // Close review modal
+    document.getElementById('closeReviewModal').addEventListener('click', closeReviewModal);
+    document.getElementById('reviewModal').addEventListener('click', function(e) {
+        if (e.target.id === 'reviewModal') {
+            closeReviewModal();
         }
     });
     
@@ -1326,4 +1574,280 @@ function showTestNotification() {
     
     console.log('Creating test notification...');
     showNotification('🔔 Test Notification', 'This is how your daily goal reminders will look!');
+}
+
+// Review Week Functions
+function openReviewModal() {
+    console.log('📊 Opening Review Week modal');
+    generateWeekReview();
+    document.getElementById('reviewModal').style.display = 'block';
+}
+
+function closeReviewModal() {
+    document.getElementById('reviewModal').style.display = 'none';
+}
+
+function generateWeekReview() {
+    console.log('🔍 Analyzing week data for review');
+    
+    const analytics = analyzeWeekData();
+    updateReviewUI(analytics);
+}
+
+function analyzeWeekData() {
+    const analysis = {
+        totalGoals: 0,
+        completedGoals: 0,
+        inProgressGoals: 0,
+        roles: [],
+        insights: []
+    };
+    
+    // Analyze main roles
+    const roleRows = document.querySelectorAll('#plannerBody .role-row');
+    
+    roleRows.forEach(row => {
+        const roleCell = row.querySelector('.role-cell');
+        const goalCells = row.querySelectorAll('.goal-cell');
+        
+        const roleData = {
+            name: roleCell.textContent.trim(),
+            color: roleCell.style.backgroundColor || '#f0f0f0',
+            totalGoals: 0,
+            completedGoals: 0,
+            goals: []
+        };
+        
+        goalCells.forEach(cell => {
+            const goalText = cell.textContent.trim();
+            if (goalText) {
+                const isCompleted = cell.classList.contains('completed');
+                roleData.totalGoals++;
+                analysis.totalGoals++;
+                
+                if (isCompleted) {
+                    roleData.completedGoals++;
+                    analysis.completedGoals++;
+                } else {
+                    analysis.inProgressGoals++;
+                }
+                
+                roleData.goals.push({
+                    text: goalText,
+                    completed: isCompleted
+                });
+            }
+        });
+        
+        // Calculate completion rate for this role
+        roleData.completionRate = roleData.totalGoals > 0 ? 
+            Math.round((roleData.completedGoals / roleData.totalGoals) * 100) : 0;
+        
+        if (roleData.totalGoals > 0) {
+            analysis.roles.push(roleData);
+        }
+    });
+    
+    // Analyze Sharpen the Saw
+    const sharpenRow = document.querySelector('.sharpen-section tbody tr');
+    if (sharpenRow) {
+        const sharpenCells = sharpenRow.querySelectorAll('.goal-cell');
+        let sharpenGoals = 0;
+        let sharpenCompleted = 0;
+        
+        sharpenCells.forEach(cell => {
+            const goalText = cell.textContent.trim();
+            if (goalText) {
+                sharpenGoals++;
+                analysis.totalGoals++;
+                
+                if (cell.classList.contains('completed')) {
+                    sharpenCompleted++;
+                    analysis.completedGoals++;
+                } else {
+                    analysis.inProgressGoals++;
+                }
+            }
+        });
+        
+        if (sharpenGoals > 0) {
+            analysis.roles.push({
+                name: 'Sharpen the Saw',
+                color: '#e8d4b8',
+                totalGoals: sharpenGoals,
+                completedGoals: sharpenCompleted,
+                completionRate: Math.round((sharpenCompleted / sharpenGoals) * 100),
+                goals: []
+            });
+        }
+    }
+    
+    // Generate insights
+    analysis.insights = generateInsights(analysis);
+    
+    console.log('📊 Week analysis complete:', analysis);
+    return analysis;
+}
+
+function generateInsights(analysis) {
+    const insights = [];
+    
+    if (analysis.totalGoals === 0) {
+        insights.push({
+            type: 'info',
+            icon: '📝',
+            message: 'No goals have been set for this week yet. Consider adding some goals to track your progress!'
+        });
+        return insights;
+    }
+    
+    const overallRate = Math.round((analysis.completedGoals / analysis.totalGoals) * 100);
+    
+    // Overall performance insights
+    if (overallRate >= 80) {
+        insights.push({
+            type: 'success',
+            icon: '🎉',
+            message: `Excellent week! You've completed ${overallRate}% of your goals. Keep up the great work!`
+        });
+    } else if (overallRate >= 60) {
+        insights.push({
+            type: 'good',
+            icon: '👍',
+            message: `Good progress! You've completed ${overallRate}% of your goals. A few more goals to finish strong.`
+        });
+    } else if (overallRate >= 40) {
+        insights.push({
+            type: 'warning',
+            icon: '⚡',
+            message: `You're halfway there with ${overallRate}% completion. Focus on the remaining goals to finish the week strong.`
+        });
+    } else {
+        insights.push({
+            type: 'alert',
+            icon: '🚨',
+            message: `Only ${overallRate}% of goals completed. Consider prioritizing your most important tasks.`
+        });
+    }
+    
+    // Role-specific insights
+    const sortedRoles = [...analysis.roles].sort((a, b) => b.completionRate - a.completionRate);
+    
+    if (sortedRoles.length > 0) {
+        const bestRole = sortedRoles[0];
+        const worstRole = sortedRoles[sortedRoles.length - 1];
+        
+        if (bestRole.completionRate >= 80) {
+            insights.push({
+                type: 'success',
+                icon: '🏆',
+                message: `${bestRole.name} is your top performer with ${bestRole.completionRate}% completion rate!`
+            });
+        }
+        
+        if (worstRole.completionRate < 50 && worstRole.totalGoals > 0) {
+            insights.push({
+                type: 'attention',
+                icon: '🎯',
+                message: `${worstRole.name} needs attention with only ${worstRole.completionRate}% completion rate.`
+            });
+        }
+    }
+    
+    // Goal distribution insights
+    const rolesWithGoals = analysis.roles.filter(role => role.totalGoals > 0);
+    if (rolesWithGoals.length > 0) {
+        const avgGoalsPerRole = Math.round(analysis.totalGoals / rolesWithGoals.length);
+        const roleWithMostGoals = rolesWithGoals.reduce((max, role) => 
+            role.totalGoals > max.totalGoals ? role : max);
+        
+        if (roleWithMostGoals.totalGoals > avgGoalsPerRole * 1.5) {
+            insights.push({
+                type: 'info',
+                icon: '⚖️',
+                message: `${roleWithMostGoals.name} has the most goals (${roleWithMostGoals.totalGoals}). Consider balancing workload across roles.`
+            });
+        }
+    }
+    
+    return insights;
+}
+
+function updateReviewUI(analytics) {
+    const overallRate = analytics.totalGoals > 0 ? 
+        Math.round((analytics.completedGoals / analytics.totalGoals) * 100) : 0;
+    
+    // Update overall stats
+    document.getElementById('overallPercentage').textContent = `${overallRate}%`;
+    document.getElementById('overallStats').textContent = 
+        `${analytics.completedGoals} of ${analytics.totalGoals} goals completed`;
+    
+    // Update breakdown
+    document.getElementById('completedCount').textContent = analytics.completedGoals;
+    document.getElementById('inProgressCount').textContent = analytics.inProgressGoals;
+    document.getElementById('totalGoalsCount').textContent = analytics.totalGoals;
+    
+    // Update progress circle color based on completion rate
+    const progressCircle = document.querySelector('.progress-circle');
+    progressCircle.className = 'progress-circle';
+    if (overallRate >= 80) progressCircle.classList.add('excellent');
+    else if (overallRate >= 60) progressCircle.classList.add('good');
+    else if (overallRate >= 40) progressCircle.classList.add('average');
+    else progressCircle.classList.add('needs-attention');
+    
+    // Update role performance list
+    const rolePerformanceList = document.getElementById('rolePerformanceList');
+    rolePerformanceList.innerHTML = '';
+    
+    const sortedRoles = [...analytics.roles].sort((a, b) => b.completionRate - a.completionRate);
+    
+    sortedRoles.forEach(role => {
+        const roleItem = document.createElement('div');
+        roleItem.className = 'role-performance-item';
+        
+        let statusIcon = '';
+        let statusClass = '';
+        if (role.completionRate >= 80) {
+            statusIcon = '🏆';
+            statusClass = 'excellent';
+        } else if (role.completionRate >= 60) {
+            statusIcon = '👍';
+            statusClass = 'good';
+        } else if (role.completionRate >= 40) {
+            statusIcon = '⚡';
+            statusClass = 'average';
+        } else {
+            statusIcon = '🎯';
+            statusClass = 'needs-attention';
+        }
+        
+        roleItem.innerHTML = `
+            <div class="role-header">
+                <span class="role-name" style="background-color: ${role.color}">${role.name}</span>
+                <span class="role-status ${statusClass}">${statusIcon} ${role.completionRate}%</span>
+            </div>
+            <div class="role-details">
+                <div class="progress-bar">
+                    <div class="progress-fill ${statusClass}" style="width: ${role.completionRate}%"></div>
+                </div>
+                <span class="goal-count">${role.completedGoals}/${role.totalGoals} goals</span>
+            </div>
+        `;
+        
+        rolePerformanceList.appendChild(roleItem);
+    });
+    
+    // Update insights
+    const insightsList = document.getElementById('insightsList');
+    insightsList.innerHTML = '';
+    
+    analytics.insights.forEach(insight => {
+        const insightItem = document.createElement('div');
+        insightItem.className = `insight-item ${insight.type}`;
+        insightItem.innerHTML = `
+            <span class="insight-icon">${insight.icon}</span>
+            <span class="insight-message">${insight.message}</span>
+        `;
+        insightsList.appendChild(insightItem);
+    });
 }

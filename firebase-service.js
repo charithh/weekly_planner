@@ -198,6 +198,49 @@ function updateSyncStatus(status, message) {
     }
 }
 
+// Delete all Firebase data (for testing/reset purposes)
+export async function deleteAllFirebaseData() {
+    if (!db) {
+        console.warn('Firebase not initialized');
+        return false;
+    }
+
+    try {
+        // Import required Firestore functions
+        const { collection, getDocs, deleteDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        
+        console.log('🗑️ Starting Firebase data deletion...');
+        
+        // Delete all weekly plans
+        const weeklyPlansRef = collection(db, 'weekly-plans');
+        const weeklyPlansSnapshot = await getDocs(weeklyPlansRef);
+        
+        console.log(`Found ${weeklyPlansSnapshot.docs.length} weekly plans to delete`);
+        
+        for (const docSnapshot of weeklyPlansSnapshot.docs) {
+            await deleteDoc(doc(db, 'weekly-plans', docSnapshot.id));
+            console.log(`✅ Deleted weekly plan: ${docSnapshot.id}`);
+        }
+        
+        // Delete structure template
+        try {
+            await deleteDoc(doc(db, 'templates', 'default-structure'));
+            console.log('✅ Deleted structure template');
+        } catch (error) {
+            console.log('ℹ️ No structure template to delete');
+        }
+        
+        console.log('🎉 Firebase data deletion complete!');
+        updateSyncStatus('online', 'Reset complete');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Error deleting Firebase data:', error);
+        updateSyncStatus('error', 'Reset failed');
+        return false;
+    }
+}
+
 // Export for global access
 window.FirebaseService = {
     initFirebase,
@@ -205,5 +248,6 @@ window.FirebaseService = {
     loadWeekData,
     saveStructureTemplate,
     loadStructureTemplate,
-    listenToWeekChanges
+    listenToWeekChanges,
+    deleteAllFirebaseData
 };

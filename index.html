@@ -48,6 +48,7 @@
                 <button id="removeGoal" class="btn btn-secondary">- Remove Goal Column</button>
                 <button id="todayButton" class="btn btn-secondary">Today</button>
                 <button id="reminderSettings" class="btn btn-secondary">🔔 Reminders</button>
+                <button id="reviewWeek" class="btn btn-secondary">📊 Review Week</button>
                 <button id="hideControls" class="btn btn-hide">✕ Hide</button>
             </div>
         </header>
@@ -164,6 +165,56 @@
                         <button id="saveReminders" class="btn btn-primary">Save Settings</button>
                         <button id="testNotification" class="btn btn-secondary">Test Notification</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Week Modal -->
+    <div id="reviewModal" class="modal" style="display: none;">
+        <div class="modal-content review-modal">
+            <div class="modal-header">
+                <h2>📊 Week Review & Analytics</h2>
+                <span class="close" id="closeReviewModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="review-summary" id="reviewSummary">
+                    <div class="summary-stats">
+                        <div class="stat-card">
+                            <h3>Overall Progress</h3>
+                            <div class="progress-circle">
+                                <span id="overallPercentage">0%</span>
+                            </div>
+                            <p id="overallStats">0 of 0 goals completed</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Goals Breakdown</h3>
+                            <div id="goalBreakdown">
+                                <div class="breakdown-item">
+                                    <span class="icon">✅</span>
+                                    <span>Completed: <strong id="completedCount">0</strong></span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="icon">⏳</span>
+                                    <span>In Progress: <strong id="inProgressCount">0</strong></span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span class="icon">📝</span>
+                                    <span>Total Goals: <strong id="totalGoalsCount">0</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="role-analysis" id="roleAnalysis">
+                    <h3>Role Performance Analysis</h3>
+                    <div id="rolePerformanceList"></div>
+                </div>
+                
+                <div class="insights" id="insights">
+                    <h3>💡 Insights & Recommendations</h3>
+                    <div id="insightsList"></div>
                 </div>
             </div>
         </div>
