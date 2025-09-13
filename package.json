@@ -1,0 +1,19 @@
+{
+  "name": "weekly_planner",
+  "version": "1.0.0",
+  "description": "A role-based weekly planner with Firebase Firestore integration for real-time sync across devices.",
+  "main": "firebase-config.js",
+  "scripts": {
+    "build-css": "tailwindcss -i ./src/input.css -o ./dist/styles.css --watch",
+    "build-css-prod": "tailwindcss -i ./src/input.css -o ./dist/styles.css --minify",
+    "dev": "python3 -m http.server 3000 & npm run build-css",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "tailwindcss": "^4.1.13"
+  }
+}

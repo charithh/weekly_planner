@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom component classes for the weekly planner */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+  }
+  
+  .btn-success {
+    @apply bg-success-500 hover:bg-success-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-success-500 focus:ring-offset-2;
+  }
+  
+  .btn-warning {
+    @apply bg-warning-500 hover:bg-warning-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-warning-500 focus:ring-offset-2;
+  }
+  
+  .btn-danger {
+    @apply bg-error-500 hover:bg-error-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-error-500 focus:ring-offset-2;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden;
+  }
+  
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50;
+  }
+  
+  .modal-content {
+    @apply bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto;
+  }
+  
+  .notification-success {
+    @apply bg-success-50 border border-success-200 text-success-800;
+  }
+  
+  .notification-warning {
+    @apply bg-warning-50 border border-warning-200 text-warning-800;
+  }
+  
+  .notification-error {
+    @apply bg-error-50 border border-error-200 text-error-800;
+  }
+  
+  .notification-info {
+    @apply bg-primary-50 border border-primary-200 text-primary-800;
+  }
+  
+  .role-cell {
+    @apply bg-gray-100 text-gray-800 font-medium p-3 text-center border-r border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors duration-200;
+  }
+  
+  .goal-cell {
+    @apply p-3 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset;
+  }
+  
+  .goal-cell.completed {
+    @apply bg-success-50 text-success-800 line-through;
+  }
+  
+  .progress-circle {
+    @apply w-20 h-20 rounded-full flex items-center justify-center text-lg font-bold border-4 mx-auto mb-2;
+  }
+  
+  .progress-circle.excellent {
+    @apply bg-success-50 border-success-500 text-success-700;
+  }
+  
+  .progress-circle.good {
+    @apply bg-primary-50 border-primary-500 text-primary-700;
+  }
+  
+  .progress-circle.average {
+    @apply bg-warning-50 border-warning-500 text-warning-700;
+  }
+  
+  .progress-circle.needs-attention {
+    @apply bg-error-50 border-error-500 text-error-700;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  .glass {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.8);
+  }
+}

@@ -184,6 +184,7 @@ function addRole() {
     }
     
     tbody.appendChild(newRow);
+    console.log('➕ Added new role:', newRole, '- will be available for future weeks');
     saveToLocalStorage();
 }
 
@@ -193,7 +194,9 @@ function removeRole() {
     
     if (rows.length > 1) {
         const lastRow = rows[rows.length - 1];
-        if (confirm('Remove the last role: "' + lastRow.querySelector('.role-cell').textContent.trim() + '"?')) {
+        const roleName = lastRow.querySelector('.role-cell').textContent.trim();
+        
+        if (confirm('Remove the last role: "' + roleName + '"?')) {
             lastRow.remove();
             saveToLocalStorage();
         }
@@ -209,7 +212,14 @@ function addGoalColumn() {
 
 function removeGoalColumn() {
     const headerRow = document.querySelector('thead tr');
-    const goalHeaders = headerRow.querySelectorAll('.goal-header');
+    
+    if (!headerRow) {
+        alert('Error: Could not find table header');
+        return;
+    }
+    
+    const allHeaders = headerRow.querySelectorAll('th');
+    const goalHeaders = Array.from(allHeaders).slice(1); // Skip the first column (ROLE column)
     
     if (goalHeaders.length > 1) {
         if (confirm('Remove the last goal column for this week?')) {
@@ -353,12 +363,15 @@ async function saveToFirestore() {
             color: role.color,
             goals: [] // Empty goals for structure template
         })),
-        goalColumnsCount: 3 // Default goal column count for new weeks
+        goalColumnsCount: plannerData.goalColumnsCount // Use current week's goal column count for new weeks
     };
     
     // Save structure to localStorage
     localStorage.setItem('weeklyPlanner-structure', JSON.stringify(newStructureData));
-    console.log('📦 localStorage structure template:', JSON.stringify(newStructureData, null, 2));
+    console.log('📋 Updated structure template with current roles and goal columns');
+    console.log('📋 Template roles being saved:', newStructureData.roles.map(r => r.name));
+    console.log('📋 Template goal columns being saved:', newStructureData.goalColumnsCount);
+    console.log('📦 Full template saved to localStorage:', JSON.stringify(newStructureData, null, 2));
     
     // Try Firebase for structure
     if (isFirebaseReady && window.FirebaseService) {
@@ -442,6 +455,9 @@ async function loadWeekData() {
         
         if (structureData) {
             // Load structure with empty goals
+            console.log('📋 Loading structure template for new week');
+            console.log('📋 Template roles:', structureData.roles.map(r => r.name));
+            console.log('📋 Template goal columns:', structureData.goalColumnsCount);
             loadPlannerData(structureData);
         } else {
             console.log('No structure template found, using defaults');
@@ -482,8 +498,21 @@ function addGoalColumnToStructure() {
     
     // Add header
     const newHeader = document.createElement('th');
-    newHeader.className = 'goal-header';
+    // Check if this will be the last column to determine border styling
+    const isLastColumn = headerRow.children.length === headerRow.querySelectorAll('th').length;
+    if (isLastColumn) {
+        newHeader.className = 'px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider';
+    } else {
+        newHeader.className = 'px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200';
+    }
     newHeader.textContent = 'GOAL';
+    
+    // Update the previous last column to have border if it exists
+    const currentLastHeader = headerRow.children[headerRow.children.length - 1];
+    if (currentLastHeader && !currentLastHeader.classList.contains('border-r')) {
+        currentLastHeader.classList.add('border-r', 'border-gray-200');
+    }
+    
     headerRow.appendChild(newHeader);
     
     // Add cells to each row
@@ -516,11 +545,18 @@ function removeGoalColumnFromStructure() {
     const table = document.getElementById('plannerTable');
     const headerRow = table.querySelector('thead tr');
     const bodyRows = table.querySelectorAll('tbody tr');
-    const goalHeaders = headerRow.querySelectorAll('.goal-header');
+    const allHeaders = headerRow.querySelectorAll('th');
+    const goalHeaders = Array.from(allHeaders).slice(1); // Skip the first column (ROLE column)
     
     if (goalHeaders.length > 1) {
         // Remove header
         headerRow.removeChild(headerRow.lastElementChild);
+        
+        // Update the new last column to remove border
+        const newLastHeader = headerRow.children[headerRow.children.length - 1];
+        if (newLastHeader) {
+            newLastHeader.classList.remove('border-r', 'border-gray-200');
+        }
         
         // Remove cells from each row
         bodyRows.forEach(row => {
@@ -1228,13 +1264,13 @@ function initializeControls() {
 function toggleControls(show) {
     const controlsPanel = document.getElementById('controlsPanel');
     const toggleButton = document.getElementById('toggleControls');
-    const toggleIcon = toggleButton.querySelector('.toggle-icon');
-    const toggleText = toggleButton.querySelector('.toggle-text');
+    const toggleIcon = toggleButton.children[0]; // First span element (icon)
+    const toggleText = toggleButton.children[1]; // Second span element (text)
     
     if (show) {
         controlsPanel.classList.remove('hidden');
-        toggleIcon.textContent = '⚙️';
-        toggleText.textContent = 'Controls';
+        if (toggleIcon) toggleIcon.textContent = '⚙️';
+        if (toggleText) toggleText.textContent = 'Controls';
         
         // Auto-hide after 10 seconds if not interacted with
         setTimeout(() => {
@@ -1245,8 +1281,8 @@ function toggleControls(show) {
         
     } else {
         controlsPanel.classList.add('hidden');
-        toggleIcon.textContent = '⚙️';
-        toggleText.textContent = 'Controls';
+        if (toggleIcon) toggleIcon.textContent = '⚙️';
+        if (toggleText) toggleText.textContent = 'Controls';
     }
 }
 
@@ -1597,11 +1633,11 @@ function showTestNotification() {
 function openReviewModal() {
     console.log('📊 Opening Review Week modal');
     generateWeekReview();
-    document.getElementById('reviewModal').style.display = 'block';
+    document.getElementById('reviewModal').classList.remove('hidden');
 }
 
 function closeReviewModal() {
-    document.getElementById('reviewModal').style.display = 'none';
+    document.getElementById('reviewModal').classList.add('hidden');
 }
 
 // This function has been moved below with enhanced functionality

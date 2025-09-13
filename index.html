@@ -10,6 +10,42 @@
     <meta name="theme-color" content="#007bff">
     <title>Weekly Planner</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        },
+                        success: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        },
+                        warning: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        },
+                        error: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="styles.css">
     
     <!-- Firebase SDK v9 modular -->
@@ -22,148 +58,251 @@
         window.firebase = { initializeApp, getFirestore, getAuth };
     </script>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <div class="week-selector">
-                <button id="prevWeek" class="btn btn-nav">‹ Prev</button>
-                <div class="week-picker">
-                    <h1 id="weekHeader" class="clickable-header">WEEK OF: [DAY OF SUNDAY/ MONTH/YEAR]</h1>
-                    <input type="date" id="datePicker" class="date-picker" style="display: none;">
+<body class="bg-gray-50 min-h-screen">
+    <div class="min-h-screen">
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <!-- Week Navigation -->
+                    <div class="flex items-center justify-center gap-4">
+                        <button id="prevWeek" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                            ‹ Prev
+                        </button>
+                        <div class="flex items-center">
+                            <h1 id="weekHeader" class="text-lg font-semibold text-gray-900 cursor-pointer hover:text-primary-600 transition-colors">
+                                WEEK OF: [DAY OF SUNDAY/ MONTH/YEAR]
+                            </h1>
+                            <input type="date" id="datePicker" class="hidden">
+                        </div>
+                        <button id="nextWeek" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                            Next ›
+                        </button>
+                    </div>
+
+                    <!-- Status and Controls Toggle -->
+                    <div class="flex items-center justify-center gap-4">
+                        <div id="syncStatus" class="flex items-center gap-2">
+                            <span id="syncIndicator" class="w-2 h-2 rounded-full bg-red-500"></span>
+                            <span id="syncText" class="text-sm text-gray-600">Offline</span>
+                        </div>
+                        <button id="toggleControls" class="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors" title="Show/Hide Controls">
+                            <span>⚙️</span>
+                            <span class="hidden sm:inline">Controls</span>
+                        </button>
+                    </div>
                 </div>
-                <button id="nextWeek" class="btn btn-nav">Next ›</button>
-                <div id="syncStatus" class="sync-status">
-                    <span id="syncIndicator" class="sync-indicator offline">●</span>
-                    <span id="syncText">Offline</span>
+
+                <!-- Controls Panel -->
+                <div class="controls hidden mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200" id="controlsPanel">
+                    <div class="flex flex-wrap gap-2">
+                        <button id="addRole" class="inline-flex items-center px-3 py-2 bg-primary-500 text-white text-sm font-medium rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                            + Add Role
+                        </button>
+                        <button id="addGoal" class="inline-flex items-center px-3 py-2 bg-primary-500 text-white text-sm font-medium rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                            + Add Goal Column
+                        </button>
+                        <button id="removeRole" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                            - Remove Role
+                        </button>
+                        <button id="removeGoal" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                            - Remove Goal Column
+                        </button>
+                        <button id="todayButton" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                            Today
+                        </button>
+                        <button id="reminderSettings" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                            🔔 Reminders
+                        </button>
+                        <button id="reviewWeek" class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                            📊 Review Week
+                        </button>
+                        <button id="hideControls" class="inline-flex items-center px-3 py-2 bg-red-100 text-red-700 text-sm font-medium rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
+                            ✕ Hide
+                        </button>
+                    </div>
                 </div>
-                <button id="toggleControls" class="btn btn-controls-toggle" title="Show/Hide Controls">
-                    <span class="toggle-icon">⚙️</span>
-                    <span class="toggle-text">Controls</span>
-                </button>
-            </div>
-            <div class="controls" id="controlsPanel">
-                <button id="addRole" class="btn btn-primary">+ Add Role</button>
-                <button id="addGoal" class="btn btn-primary">+ Add Goal Column</button>
-                <button id="removeRole" class="btn btn-secondary">- Remove Role</button>
-                <button id="removeGoal" class="btn btn-secondary">- Remove Goal Column</button>
-                <button id="todayButton" class="btn btn-secondary">Today</button>
-                <button id="reminderSettings" class="btn btn-secondary">🔔 Reminders</button>
-                <button id="reviewWeek" class="btn btn-secondary">📊 Review Week</button>
-                <button id="hideControls" class="btn btn-hide">✕ Hide</button>
             </div>
         </header>
         
-        <div class="planner-container">
-            <table id="plannerTable" class="planner-table">
-                <thead>
-                    <tr>
-                        <th class="role-header">ROLE</th>
-                        <th class="goal-header">GOAL</th>
-                        <th class="goal-header">GOAL</th>
-                        <th class="goal-header">GOAL</th>
-                    </tr>
-                </thead>
-                <tbody id="plannerBody">
-                    <tr class="role-row" data-role="individual">
-                        <td class="role-cell individual">Individual</td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                    </tr>
-                    <tr class="role-row" data-role="husband">
-                        <td class="role-cell husband">Husband</td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                    </tr>
-                    <tr class="role-row" data-role="father">
-                        <td class="role-cell father">Father</td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                    </tr>
-                    <tr class="role-row" data-role="engineering-manager">
-                        <td class="role-cell engineering-manager">
-                            Engineering Manager
-                            <ul class="sub-roles">
-                                <li>People</li>
-                                <li>Process</li>
-                                <li>Technology</li>
-                                <li>Product</li>
-                            </ul>
-                        </td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                    </tr>
-                    <tr class="role-row" data-role="vpm-toastmaster">
-                        <td class="role-cell vpm-toastmaster">VPM - Toastmaster</td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                    </tr>
-                    <tr class="role-row" data-role="founder-technology">
-                        <td class="role-cell founder-technology">Founder - Technology</td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <!-- Main Planner Table -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table id="plannerTable" class="w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                                    ROLE
+                                </th>
+                                <th class="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                                    GOAL
+                                </th>
+                                <th class="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                                    GOAL
+                                </th>
+                                <th class="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    GOAL
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="plannerBody" class="bg-white divide-y divide-gray-200">
+                            <tr class="role-row hover:bg-gray-50 transition-colors" data-role="individual">
+                                <td class="role-cell px-6 py-4 bg-blue-50 text-blue-800 font-medium text-center border-r border-gray-200 cursor-pointer hover:bg-blue-100 transition-colors">
+                                    Individual
+                                </td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                            </tr>
+                            <tr class="role-row hover:bg-gray-50 transition-colors" data-role="husband">
+                                <td class="role-cell px-6 py-4 bg-green-50 text-green-800 font-medium text-center border-r border-gray-200 cursor-pointer hover:bg-green-100 transition-colors">
+                                    Husband
+                                </td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                            </tr>
+                            <tr class="role-row hover:bg-gray-50 transition-colors" data-role="father">
+                                <td class="role-cell px-6 py-4 bg-purple-50 text-purple-800 font-medium text-center border-r border-gray-200 cursor-pointer hover:bg-purple-100 transition-colors">
+                                    Father
+                                </td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                            </tr>
+                            <tr class="role-row hover:bg-gray-50 transition-colors" data-role="engineering-manager">
+                                <td class="role-cell px-6 py-4 bg-orange-50 text-orange-800 font-medium text-center border-r border-gray-200 cursor-pointer hover:bg-orange-100 transition-colors">
+                                    <div>Engineering Manager</div>
+                                    <ul class="sub-roles text-xs text-orange-600 mt-1 space-y-1">
+                                        <li>• People</li>
+                                        <li>• Process</li>
+                                        <li>• Technology</li>
+                                        <li>• Product</li>
+                                    </ul>
+                                </td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                            </tr>
+                            <tr class="role-row hover:bg-gray-50 transition-colors" data-role="vpm-toastmaster">
+                                <td class="role-cell px-6 py-4 bg-pink-50 text-pink-800 font-medium text-center border-r border-gray-200 cursor-pointer hover:bg-pink-100 transition-colors">
+                                    VPM - Toastmaster
+                                </td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                            </tr>
+                            <tr class="role-row hover:bg-gray-50 transition-colors" data-role="founder-technology">
+                                <td class="role-cell px-6 py-4 bg-indigo-50 text-indigo-800 font-medium text-center border-r border-gray-200 cursor-pointer hover:bg-indigo-100 transition-colors">
+                                    Founder - Technology
+                                </td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-        <div class="planner-container sharpen-section">
-            <table class="planner-table">
-                <tbody>
-                    <tr class="role-row">
-                        <td class="role-cell sharpen-saw">SHARPEN THE SAW</td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                        <td class="goal-cell" contenteditable="true" title="Click checkbox to mark complete"></td>
-                    </tr>
-                </tbody>
-            </table>
+            <!-- Sharpen the Saw Section -->
+            <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <tbody class="bg-white">
+                            <tr class="role-row hover:bg-gray-50 transition-colors">
+                                <td class="role-cell px-6 py-4 bg-yellow-50 text-yellow-800 font-medium text-center border-r border-gray-200 cursor-pointer hover:bg-yellow-100 transition-colors">
+                                    SHARPEN THE SAW
+                                </td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 border-r border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                                <td class="goal-cell px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset min-h-[3rem]" contenteditable="true" title="Click to edit goal, tap checkbox to mark complete"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Reminder Settings Modal -->
-    <div id="reminderModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🔔 Daily Goal Reminders</h2>
-                <span class="close" id="closeModal">&times;</span>
+    <div id="reminderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">🔔 Daily Goal Reminders</h2>
+                <button id="closeModal" class="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors">
+                    <span class="sr-only">Close</span>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
-            <div class="modal-body">
-                <div class="notification-status" id="notificationStatus">
-                    <p>🔕 Notifications are disabled</p>
-                    <button id="enableNotifications" class="btn btn-primary">Enable Notifications</button>
-                </div>
-                <div class="reminder-settings" id="reminderSettingsPanel" style="display: none;">
-                    <div class="setting-group">
-                        <label for="reminderTime">Reminder Time:</label>
-                        <input type="time" id="reminderTime" value="09:00">
+            
+            <div class="p-6 space-y-6">
+                <div id="notificationStatus" class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">🔕</span>
                     </div>
-                    <div class="setting-group">
-                        <label>Days to remind:</label>
-                        <div class="days-selector">
-                            <label><input type="checkbox" id="mon" checked> Mon</label>
-                            <label><input type="checkbox" id="tue" checked> Tue</label>
-                            <label><input type="checkbox" id="wed" checked> Wed</label>
-                            <label><input type="checkbox" id="thu" checked> Thu</label>
-                            <label><input type="checkbox" id="fri" checked> Fri</label>
-                            <label><input type="checkbox" id="sat"> Sat</label>
-                            <label><input type="checkbox" id="sun"> Sun</label>
+                    <p class="text-gray-600 mb-4">Notifications are disabled</p>
+                    <button id="enableNotifications" class="inline-flex items-center px-4 py-2 bg-primary-500 text-white font-medium rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                        Enable Notifications
+                    </button>
+                </div>
+                
+                <div id="reminderSettingsPanel" class="space-y-6" style="display: none;">
+                    <div>
+                        <label for="reminderTime" class="block text-sm font-medium text-gray-700 mb-2">Reminder Time:</label>
+                        <input type="time" id="reminderTime" value="09:00" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Days to remind:</label>
+                        <div class="grid grid-cols-7 gap-2">
+                            <label class="flex flex-col items-center">
+                                <input type="checkbox" id="mon" checked class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                <span class="text-xs text-gray-600 mt-1">Mon</span>
+                            </label>
+                            <label class="flex flex-col items-center">
+                                <input type="checkbox" id="tue" checked class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                <span class="text-xs text-gray-600 mt-1">Tue</span>
+                            </label>
+                            <label class="flex flex-col items-center">
+                                <input type="checkbox" id="wed" checked class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                <span class="text-xs text-gray-600 mt-1">Wed</span>
+                            </label>
+                            <label class="flex flex-col items-center">
+                                <input type="checkbox" id="thu" checked class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                <span class="text-xs text-gray-600 mt-1">Thu</span>
+                            </label>
+                            <label class="flex flex-col items-center">
+                                <input type="checkbox" id="fri" checked class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                <span class="text-xs text-gray-600 mt-1">Fri</span>
+                            </label>
+                            <label class="flex flex-col items-center">
+                                <input type="checkbox" id="sat" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                <span class="text-xs text-gray-600 mt-1">Sat</span>
+                            </label>
+                            <label class="flex flex-col items-center">
+                                <input type="checkbox" id="sun" class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                                <span class="text-xs text-gray-600 mt-1">Sun</span>
+                            </label>
                         </div>
                     </div>
-                    <div class="setting-group">
-                        <label>
-                            <input type="checkbox" id="enableReminders" checked>
-                            Enable daily reminders
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="enableReminders" checked class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500">
+                            <span class="ml-2 text-sm text-gray-700">Enable daily reminders</span>
                         </label>
                     </div>
-                    <div class="modal-actions">
-                        <button id="saveReminders" class="btn btn-primary">Save Settings</button>
-                        <button id="testNotification" class="btn btn-secondary">Test Notification</button>
+                    
+                    <div class="flex gap-3 pt-4 border-t border-gray-200">
+                        <button id="saveReminders" class="flex-1 inline-flex justify-center items-center px-4 py-2 bg-primary-500 text-white font-medium rounded-md hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                            Save Settings
+                        </button>
+                        <button id="testNotification" class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                            Test Notification
+                        </button>
                     </div>
                 </div>
             </div>
@@ -171,56 +310,56 @@
     </div>
 
     <!-- Review Week Modal -->
-    <div id="reviewModal" class="modal" style="display: none;">
-        <div class="modal-content review-modal">
-            <div class="modal-header">
-                <h2>📊 Week Review & Analytics</h2>
-                <span class="close" id="closeReviewModal">&times;</span>
+    <div id="reviewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-900">📊 Week Review & Analytics</h2>
+                <span class="cursor-pointer text-2xl text-gray-400 hover:text-gray-600 transition-colors" id="closeReviewModal">&times;</span>
             </div>
-            <div class="modal-body">
-                <div class="review-summary" id="reviewSummary">
-                    <div class="summary-stats">
-                        <div class="stat-card">
-                            <h3>Overall Progress</h3>
-                            <div class="progress-circle">
-                                <span id="overallPercentage">0%</span>
+            <div class="p-6 space-y-6">
+                <div id="reviewSummary" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="card p-6 text-center">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Overall Progress</h3>
+                            <div class="progress-circle mx-auto mb-3">
+                                <span id="overallPercentage" class="text-lg font-bold">0%</span>
                             </div>
-                            <p id="overallStats">0 of 0 goals completed</p>
+                            <p id="overallStats" class="text-sm text-gray-600">0 of 0 goals completed</p>
                         </div>
-                        <div class="stat-card">
-                            <h3>Goals Breakdown</h3>
-                            <div id="goalBreakdown">
-                                <div class="breakdown-item">
-                                    <span class="icon">✅</span>
-                                    <span>Completed: <strong id="completedCount">0</strong></span>
+                        <div class="card p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Goals Breakdown</h3>
+                            <div id="goalBreakdown" class="space-y-2">
+                                <div class="flex items-center">
+                                    <span class="text-lg mr-2">✅</span>
+                                    <span class="text-sm text-gray-700">Completed: <strong id="completedCount">0</strong></span>
                                 </div>
-                                <div class="breakdown-item">
-                                    <span class="icon">⏳</span>
-                                    <span>In Progress: <strong id="inProgressCount">0</strong></span>
+                                <div class="flex items-center">
+                                    <span class="text-lg mr-2">⏳</span>
+                                    <span class="text-sm text-gray-700">In Progress: <strong id="inProgressCount">0</strong></span>
                                 </div>
-                                <div class="breakdown-item">
-                                    <span class="icon">📝</span>
-                                    <span>Total Goals: <strong id="totalGoalsCount">0</strong></span>
+                                <div class="flex items-center">
+                                    <span class="text-lg mr-2">📝</span>
+                                    <span class="text-sm text-gray-700">Total Goals: <strong id="totalGoalsCount">0</strong></span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="role-analysis" id="roleAnalysis">
-                    <h3>Role Performance Analysis</h3>
-                    <div id="rolePerformanceList"></div>
+                <div id="roleAnalysis" class="card p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Role Performance Analysis</h3>
+                    <div id="rolePerformanceList" class="space-y-3"></div>
                 </div>
                 
-                <div class="insights" id="insights">
-                    <h3>💡 Insights & Recommendations</h3>
-                    <div id="insightsList"></div>
+                <div id="insights" class="card p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">💡 Insights & Recommendations</h3>
+                    <div id="insightsList" class="space-y-2"></div>
                 </div>
                 
-                <div class="review-actions">
-                    <button id="saveReview" class="btn btn-primary">💾 Save Review</button>
-                    <button id="viewHistory" class="btn btn-secondary">📚 View History</button>
-                    <div id="reviewStatus" class="review-status"></div>
+                <div class="flex gap-3 pt-4 border-t border-gray-200">
+                    <button id="saveReview" class="btn-primary flex items-center gap-2">💾 Save Review</button>
+                    <button id="viewHistory" class="btn-secondary flex items-center gap-2">📚 View History</button>
+                    <div id="reviewStatus" class="ml-auto text-sm"></div>
                 </div>
             </div>
         </div>
