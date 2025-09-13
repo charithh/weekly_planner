@@ -404,6 +404,7 @@ export async function getAllWeeklyReviews() {
     }
 }
 
+
 // Export for global access
 window.FirebaseService = {
     initFirebase,

@@ -285,7 +285,12 @@ function updateWeekHeader() {
 }
 
 function getWeekKey(weekStart) {
-    return `week-${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`;
+    const year = weekStart.getFullYear();
+    const month = String(weekStart.getMonth() + 1).padStart(2, '0'); // Add 1 since getMonth() is 0-indexed
+    const day = String(weekStart.getDate()).padStart(2, '0');
+    const key = `week-${year}-${month}-${day}`;
+    console.log('📅 Generated week key:', key, 'for date:', weekStart.toDateString());
+    return key;
 }
 
 async function saveToFirestore() {
@@ -384,7 +389,6 @@ async function saveToFirestore() {
     }
 }
 
-// Keep the old function name for compatibility
 function saveToLocalStorage() {
     saveToFirestore();
 }
