@@ -58,6 +58,9 @@ async function initializeFirebase() {
 function initializePlanner() {
     console.log('=== INITIALIZING PLANNER ===');
     
+    // Set up sharpen listeners first for existing HTML cells
+    setupSharpenListeners();
+    
     // Load saved data first - this will rebuild the entire structure dynamically
     console.log('Loading saved data...');
     loadFromLocalStorage();
@@ -66,6 +69,16 @@ function initializePlanner() {
     // during the dynamic role creation in loadPlannerData()
     
     console.log('=== PLANNER INITIALIZATION COMPLETE ===');
+}
+
+function setupSharpenListeners() {
+    const sharpenRow = document.querySelector('.sharpen-section tbody tr');
+    if (sharpenRow) {
+        const sharpenCells = sharpenRow.querySelectorAll('.goal-cell');
+        sharpenCells.forEach(cell => {
+            setupGoalCellListeners(cell);
+        });
+    }
 }
 
 function setupEventListeners() {
@@ -661,23 +674,32 @@ function loadPlannerData(plannerData) {
         
         // Load sharpen the saw data
         const sharpenRow = document.querySelector('.sharpen-section tbody tr');
-        if (sharpenRow && plannerData.sharpenData) {
+        if (sharpenRow) {
             const sharpenCells = sharpenRow.querySelectorAll('.goal-cell');
-            sharpenCells.forEach((cell, index) => {
-                if (plannerData.sharpenData[index]) {
-                    const goalData = plannerData.sharpenData[index];
-                    if (typeof goalData === 'string') {
-                        // Legacy format support
-                        cell.textContent = goalData;
-                    } else {
-                        // New format with completion status
-                        cell.textContent = goalData.text;
-                        if (goalData.completed) {
-                            cell.classList.add('completed');
+            
+            // Set up event listeners for all sharpen cells (existing and newly created)
+            sharpenCells.forEach(cell => {
+                setupGoalCellListeners(cell);
+            });
+            
+            // Load saved data if available
+            if (plannerData.sharpenData) {
+                sharpenCells.forEach((cell, index) => {
+                    if (plannerData.sharpenData[index]) {
+                        const goalData = plannerData.sharpenData[index];
+                        if (typeof goalData === 'string') {
+                            // Legacy format support
+                            cell.textContent = goalData;
+                        } else {
+                            // New format with completion status
+                            cell.textContent = goalData.text;
+                            if (goalData.completed) {
+                                cell.classList.add('completed');
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
         
         console.log('✅ Role structure completely rebuilt from saved data');
