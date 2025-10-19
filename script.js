@@ -1,5 +1,7 @@
 // Global variable to track current week
 let currentWeekStart = null;
+// Make currentWeekStart globally accessible for Firebase service
+window.currentWeekStart = null;
 let isFirebaseReady = false;
 let notificationPermission = false;
 let reminderIntervals = [];
@@ -7,6 +9,7 @@ let reminderIntervals = [];
 document.addEventListener('DOMContentLoaded', async function() {
     // Initialize current week to today's week
     currentWeekStart = getWeekStart(new Date());
+    window.currentWeekStart = currentWeekStart;
     
     // Initialize Firebase
     await initializeFirebase();
@@ -114,6 +117,7 @@ function setupEventListeners() {
     // Today button
     document.getElementById('todayButton').addEventListener('click', function() {
         currentWeekStart = getWeekStart(new Date());
+        window.currentWeekStart = currentWeekStart;
         updateWeekHeader();
         loadWeekData();
     });
@@ -127,6 +131,7 @@ function setupEventListeners() {
     document.getElementById('datePicker').addEventListener('change', function() {
         const selectedDate = new Date(this.value);
         currentWeekStart = getWeekStart(selectedDate);
+        window.currentWeekStart = currentWeekStart;
         updateWeekHeader();
         loadWeekData();
         this.style.display = 'none';
@@ -262,6 +267,7 @@ function getWeekStart(date) {
 
 function navigateWeek(direction) {
     currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+    window.currentWeekStart = currentWeekStart;
     updateWeekHeader();
     loadWeekData();
 }
