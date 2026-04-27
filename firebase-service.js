@@ -264,6 +264,14 @@ export async function deleteAllFirebaseData() {
             console.log(`✅ Deleted weekly review: ${docSnapshot.id}`);
         }
         
+        // Delete all tasks for this user
+        const tasksRef = collection(db, 'users', currentUser.uid, 'tasks');
+        const tasksSnapshot = await getDocs(tasksRef);
+        console.log(`Found ${tasksSnapshot.docs.length} tasks to delete`);
+        for (const docSnapshot of tasksSnapshot.docs) {
+            await deleteDoc(doc(db, 'users', currentUser.uid, 'tasks', docSnapshot.id));
+        }
+
         console.log('🎉 Firebase data deletion complete!');
         updateSyncStatus('online', 'Reset complete');
         return true;
@@ -428,6 +436,85 @@ export async function getAllWeeklyReviews() {
         
         return reviews.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
     }
+}
+
+// ===========================
+// Task CRUD functions
+// ===========================
+
+export async function saveTask(taskId, taskData) {
+    const merged = getLocalTasks();
+    merged[taskId] = taskData;
+    localStorage.setItem('tasks-global', JSON.stringify(merged));
+
+    if (!db || !currentUser) return;
+
+    try {
+        updateSyncStatus('syncing', 'Saving task...');
+        const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const docRef = doc(db, 'users', currentUser.uid, 'tasks', taskId);
+        await setDoc(docRef, { ...taskData, lastModified: new Date() });
+        updateSyncStatus('online', 'Saved');
+        setTimeout(() => updateSyncStatus('online', 'Connected'), 2000);
+    } catch (error) {
+        console.error('Error saving task to Firestore:', error);
+        updateSyncStatus('error', 'Task save failed');
+    }
+}
+
+export async function loadAllTasks() {
+    if (!db || !currentUser) {
+        return getLocalTasks();
+    }
+
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const snapshot = await getDocs(collection(db, 'users', currentUser.uid, 'tasks'));
+        const tasks = {};
+        snapshot.forEach(docSnap => { tasks[docSnap.id] = docSnap.data(); });
+        localStorage.setItem('tasks-global', JSON.stringify(tasks));
+        return tasks;
+    } catch (error) {
+        console.error('Error loading tasks from Firestore:', error);
+        return getLocalTasks();
+    }
+}
+
+export async function deleteTask(taskId) {
+    const merged = getLocalTasks();
+    delete merged[taskId];
+    localStorage.setItem('tasks-global', JSON.stringify(merged));
+
+    if (!db || !currentUser) return;
+
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'tasks', taskId));
+    } catch (error) {
+        console.error('Error deleting task from Firestore:', error);
+    }
+}
+
+export async function updateTask(taskId, updates) {
+    const merged = getLocalTasks();
+    if (merged[taskId]) {
+        merged[taskId] = { ...merged[taskId], ...updates };
+        localStorage.setItem('tasks-global', JSON.stringify(merged));
+    }
+
+    if (!db || !currentUser) return;
+
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'users', currentUser.uid, 'tasks', taskId), { ...updates, lastModified: new Date() });
+    } catch (error) {
+        console.error('Error updating task in Firestore:', error);
+    }
+}
+
+function getLocalTasks() {
+    const saved = localStorage.getItem('tasks-global');
+    return saved ? JSON.parse(saved) : {};
 }
 
 
@@ -687,12 +774,20 @@ async function initializeUserDataOnLogin() {
             }
         }
         
+        // Load tasks
+        const tasksFromFirebase = await loadAllTasks();
+        localStorage.setItem('tasks-global', JSON.stringify(tasksFromFirebase));
+        console.log('✅ Tasks synced to localStorage');
+
         updateSyncStatus('online', `Signed in as ${currentUser.email}`);
         console.log('🎉 localStorage initialization complete');
-        
-        // Reload current week to display the synced data
+
+        // Reload current week and tasks to display the synced data
         if (window.loadFromLocalStorage) {
             window.loadFromLocalStorage();
+        }
+        if (window.initializeTasks) {
+            window.initializeTasks();
         }
         
     } catch (error) {
@@ -707,9 +802,10 @@ function clearLocalStorageOnSignOut() {
     
     // Clear all weekly planner data
     const keys = Object.keys(localStorage);
-    const plannerKeys = keys.filter(key => 
-        key.startsWith('weeklyPlanner-') || 
-        key.startsWith('weeklyReview-')
+    const plannerKeys = keys.filter(key =>
+        key.startsWith('weeklyPlanner-') ||
+        key.startsWith('weeklyReview-') ||
+        key === 'tasks-global'
     );
     
     plannerKeys.forEach(key => {
@@ -748,5 +844,9 @@ window.FirebaseService = {
     signInWithEmailPassword,
     signOut,
     getCurrentUser,
-    isUserSignedIn
+    isUserSignedIn,
+    saveTask,
+    loadAllTasks,
+    deleteTask,
+    updateTask
 };

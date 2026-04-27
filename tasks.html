@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Weekly Planner">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#007bff">
+    <title>Tasks — Weekly Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Firebase SDK v9 modular -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        window.firebase = { initializeApp, getFirestore, getAuth };
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="min-h-screen">
+
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <a href="index.html" class="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                            ‹ Planner
+                        </a>
+                        <h1 class="text-lg font-semibold text-gray-900">Tasks</h1>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div id="syncStatus" class="flex items-center gap-2">
+                            <span id="syncIndicator" class="w-2 h-2 rounded-full bg-red-500"></span>
+                            <span id="syncText" class="text-sm text-gray-600">Offline</span>
+                        </div>
+                        <div id="authContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+            <!-- Toolbar -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                        <input type="checkbox" id="showCompletedTasks" class="rounded border-gray-300">
+                        Show completed
+                    </label>
+                </div>
+                <button id="addTaskBtn" class="inline-flex items-center px-3 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                    + Add Task
+                </button>
+            </div>
+
+            <!-- Eisenhower Matrix -->
+            <div class="eisenhower-matrix">
+                <!-- Q1: Urgent + Important -->
+                <div class="matrix-quadrant q1" id="quadrantQ1">
+                    <div class="quadrant-header">
+                        <span class="quadrant-label">Q1</span>
+                        <span class="quadrant-title">Urgent &amp; Important</span>
+                        <span class="quadrant-subtitle">Do First</span>
+                    </div>
+                    <div class="task-list" id="taskListQ1"></div>
+                </div>
+                <!-- Q2: Not Urgent + Important -->
+                <div class="matrix-quadrant q2" id="quadrantQ2">
+                    <div class="quadrant-header">
+                        <span class="quadrant-label">Q2</span>
+                        <span class="quadrant-title">Not Urgent &amp; Important</span>
+                        <span class="quadrant-subtitle">Schedule</span>
+                    </div>
+                    <div class="task-list" id="taskListQ2"></div>
+                </div>
+                <!-- Q3: Urgent + Not Important -->
+                <div class="matrix-quadrant q3" id="quadrantQ3">
+                    <div class="quadrant-header">
+                        <span class="quadrant-label">Q3</span>
+                        <span class="quadrant-title">Urgent &amp; Not Important</span>
+                        <span class="quadrant-subtitle">Delegate</span>
+                    </div>
+                    <div class="task-list" id="taskListQ3"></div>
+                </div>
+                <!-- Q4: Not Urgent + Not Important -->
+                <div class="matrix-quadrant q4" id="quadrantQ4">
+                    <div class="quadrant-header">
+                        <span class="quadrant-label">Q4</span>
+                        <span class="quadrant-title">Not Urgent &amp; Not Important</span>
+                        <span class="quadrant-subtitle">Eliminate</span>
+                    </div>
+                    <div class="task-list" id="taskListQ4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-page notifications -->
+    <div id="inPageNotifications" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
+
+    <!-- Add / Edit Task Modal -->
+    <div id="taskModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 id="taskModalTitle" class="text-xl font-semibold text-gray-900">Add Task</h2>
+                <span id="closeTaskModal" class="cursor-pointer text-2xl text-gray-400 hover:text-gray-600 transition-colors leading-none">&times;</span>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="taskModalId">
+
+                <div>
+                    <label for="taskModalName" class="block text-sm font-medium text-gray-700 mb-1">Task Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="taskModalName" placeholder="Short description" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+
+                <div>
+                    <label for="taskModalDescription" class="block text-sm font-medium text-gray-700 mb-1">Description <span class="text-red-500">*</span></label>
+                    <textarea id="taskModalDescription" rows="3" placeholder="Details..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"></textarea>
+                </div>
+
+                <div>
+                    <label for="taskModalRole" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select id="taskModalRole" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"></select>
+                </div>
+
+                <div>
+                    <label for="taskModalQuadrant" class="block text-sm font-medium text-gray-700 mb-1">Quadrant <span class="text-red-500">*</span></label>
+                    <select id="taskModalQuadrant" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="Q1">Q1 — Urgent &amp; Important (Do First)</option>
+                        <option value="Q2">Q2 — Not Urgent &amp; Important (Schedule)</option>
+                        <option value="Q3">Q3 — Urgent &amp; Not Important (Delegate)</option>
+                        <option value="Q4">Q4 — Not Urgent &amp; Not Important (Eliminate)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="taskModalDueDate" class="block text-sm font-medium text-gray-700 mb-1">Due Date <span class="text-gray-400 text-xs">(optional)</span></label>
+                    <input type="date" id="taskModalDueDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+
+                <div>
+                    <label for="taskModalGoal" class="block text-sm font-medium text-gray-700 mb-1">Linked Goal <span class="text-gray-400 text-xs">(optional)</span></label>
+                    <input type="text" id="taskModalGoal" placeholder="Longer-term goal this supports..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+
+                <div>
+                    <label for="taskModalDependsOn" class="block text-sm font-medium text-gray-700 mb-1">Depends On <span class="text-gray-400 text-xs">(optional)</span></label>
+                    <input type="text" id="taskModalDependsOn" placeholder="Person or thing this depends on..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+
+                <div class="flex gap-3 pt-4 border-t border-gray-200">
+                    <button id="saveTaskBtn" class="flex-1 inline-flex justify-center items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">Save Task</button>
+                    <button id="deleteTaskBtn" class="hidden px-4 py-2 bg-red-100 text-red-700 text-sm font-medium rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">Delete</button>
+                    <button id="cancelTaskBtn" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="firebase-service.js"></script>
+    <script type="module" src="tasks.js"></script>
+</body>
+</html>

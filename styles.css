@@ -1624,3 +1624,200 @@ header h1 {
         gap: 8px;
     }
 }
+
+/* ===========================
+   Tasks / Eisenhower Matrix
+   =========================== */
+
+.eisenhower-matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 480px) {
+    .eisenhower-matrix {
+        grid-template-columns: 1fr;
+    }
+}
+
+.matrix-quadrant {
+    background: white;
+    border-radius: 12px;
+    border: 2px solid;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+}
+
+.matrix-quadrant.q1 { border-color: #ef4444; }
+.matrix-quadrant.q2 { border-color: #22c55e; }
+.matrix-quadrant.q3 { border-color: #f59e0b; }
+.matrix-quadrant.q4 { border-color: #94a3b8; }
+
+.quadrant-header {
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.matrix-quadrant.q1 .quadrant-header { background: #fef2f2; }
+.matrix-quadrant.q2 .quadrant-header { background: #f0fdf4; }
+.matrix-quadrant.q3 .quadrant-header { background: #fffbeb; }
+.matrix-quadrant.q4 .quadrant-header { background: #f8fafc; }
+
+.quadrant-label {
+    font-weight: 800;
+    font-size: 13px;
+    min-width: 24px;
+}
+
+.matrix-quadrant.q1 .quadrant-label { color: #ef4444; }
+.matrix-quadrant.q2 .quadrant-label { color: #22c55e; }
+.matrix-quadrant.q3 .quadrant-label { color: #f59e0b; }
+.matrix-quadrant.q4 .quadrant-label { color: #94a3b8; }
+
+.quadrant-title {
+    font-weight: 600;
+    font-size: 12px;
+    color: #374151;
+    flex: 1;
+}
+
+.quadrant-subtitle {
+    font-size: 11px;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.task-list {
+    padding: 8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.task-list-empty {
+    font-size: 12px;
+    color: #d1d5db;
+    text-align: center;
+    padding: 20px 0;
+    font-style: italic;
+}
+
+.task-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.task-card:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.task-card.completed {
+    opacity: 0.55;
+}
+
+.task-card.completed .task-card-name {
+    text-decoration: line-through;
+    color: #9ca3af;
+}
+
+.task-card-checkbox {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
+    background: white;
+    cursor: pointer;
+    margin-top: 2px;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.task-card.completed .task-card-checkbox {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+
+.task-card.completed .task-card-checkbox::after {
+    content: "✓";
+    color: white;
+    font-size: 9px;
+    font-weight: bold;
+}
+
+.task-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.task-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.task-card-role {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.task-card-due {
+    font-size: 10px;
+    color: #6b7280;
+}
+
+.task-card-due.overdue {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.task-card-depends {
+    font-size: 10px;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .task-card {
+        padding: 12px;
+    }
+
+    .task-card-checkbox {
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+    }
+}

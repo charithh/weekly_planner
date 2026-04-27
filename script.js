@@ -171,6 +171,7 @@ function setupEventListeners() {
             }
         }
     });
+
 }
 
 function addRole() {
@@ -809,7 +810,10 @@ async function resetAllData() {
         localStorage.removeItem(key);
         console.log(`✅ Removed review key: ${key}`);
     });
-    
+
+    // Clear tasks
+    localStorage.removeItem('tasks-global');
+
     // Clear Firebase
     if (isFirebaseReady && window.FirebaseService) {
         console.log('Clearing Firebase...');
