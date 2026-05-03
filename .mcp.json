@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "weekly-planner": {
+      "command": "node",
+      "args": ["/Users/charithh/projects/weekly_planner/mcp-server/index.js"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/Users/charithh/projects/weekly_planner/mcp-server/service-account.json",
+        "FIREBASE_PROJECT_ID": "weeklyplan-a2a37",
+        "TASK_USER_ID": "9IOt3o24yrbm4MDGIdwojB7UyDI3"
+      }
+    }
+  }
+}

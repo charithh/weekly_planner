@@ -19,3 +19,12 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Cloud Functions
+functions/node_modules/
+functions/.env
+functions/service-account.json
+
+# MCP Server
+mcp-server/node_modules/
+mcp-server/service-account.json
