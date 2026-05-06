@@ -3,6 +3,13 @@ let tasksData = {};
 // Cached roles from localStorage structure template, used for the role dropdown and color lookup
 let cachedRoles = [];
 
+const activeFilters = {
+    roles: new Set(),
+    quadrants: new Set(),
+    dueDate: 'all',
+    search: ''
+};
+
 document.addEventListener('DOMContentLoaded', async function() {
     await initializeFirebase();
     setupTaskEventListeners();
@@ -54,6 +61,7 @@ async function initializeTasks() {
         tasksData = getLocalTasks();
     }
     renderTaskMatrix();
+    updateRoleFilterPills();
 }
 
 // Expose so firebase-service.js can call it after sign-in
@@ -101,6 +109,52 @@ function setupTaskEventListeners() {
     });
 
     document.getElementById('showCompletedTasks').addEventListener('change', renderTaskMatrix);
+
+    // Quadrant toggles
+    document.querySelectorAll('.filter-quadrant-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const q = btn.dataset.quadrant;
+            const nowActive = !activeFilters.quadrants.has(q);
+            if (nowActive) activeFilters.quadrants.add(q);
+            else activeFilters.quadrants.delete(q);
+            btn.classList.toggle('active', nowActive);
+            updateClearButton();
+            updateQuadrantVisibility();
+        });
+    });
+
+    // Search — debounced
+    let searchTimer;
+    document.getElementById('filterSearch').addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            activeFilters.search = this.value.trim();
+            updateClearButton();
+            renderTaskMatrix();
+        }, 200);
+    });
+
+    // Due date dropdown
+    document.getElementById('filterDueDate').addEventListener('change', function() {
+        activeFilters.dueDate = this.value;
+        updateClearButton();
+        renderTaskMatrix();
+    });
+
+    // Clear all filters
+    document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+        activeFilters.roles.clear();
+        activeFilters.quadrants.clear();
+        activeFilters.dueDate = 'all';
+        activeFilters.search = '';
+        document.getElementById('filterSearch').value = '';
+        document.getElementById('filterDueDate').value = 'all';
+        document.querySelectorAll('.filter-role-pill').forEach(btn => setPillActive(btn, false));
+        document.querySelectorAll('.filter-quadrant-pill').forEach(btn => btn.classList.remove('active'));
+        updateClearButton();
+        updateQuadrantVisibility();
+        renderTaskMatrix();
+    });
 
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeTaskModal();
@@ -286,16 +340,17 @@ function renderTaskMatrix() {
         if (!listEl) return;
         listEl.innerHTML = '';
 
-        const tasks = Object.entries(tasksData)
-            .filter(([, t]) => t.quadrant === q)
-            .filter(([, t]) => showCompleted || !t.completed)
-            .sort((a, b) => {
-                if (a[1].completed !== b[1].completed) return a[1].completed ? 1 : -1;
-                if (a[1].due_date && b[1].due_date) return a[1].due_date.localeCompare(b[1].due_date);
-                if (a[1].due_date) return -1;
-                if (b[1].due_date) return 1;
-                return (a[1].name || '').localeCompare(b[1].name || '');
-            });
+        const tasks = applyFilters(
+            Object.entries(tasksData)
+                .filter(([, t]) => t.quadrant === q)
+                .filter(([, t]) => showCompleted || !t.completed)
+        ).sort((a, b) => {
+            if (a[1].completed !== b[1].completed) return a[1].completed ? 1 : -1;
+            if (a[1].due_date && b[1].due_date) return a[1].due_date.localeCompare(b[1].due_date);
+            if (a[1].due_date) return -1;
+            if (b[1].due_date) return 1;
+            return (a[1].name || '').localeCompare(b[1].name || '');
+        });
 
         if (tasks.length === 0) {
             const empty = document.createElement('div');
@@ -347,6 +402,108 @@ function buildTaskCard(taskId, task, today) {
     });
 
     return card;
+}
+
+// ===========================
+// Filtering
+// ===========================
+
+function applyFilters(entries) {
+    const today = new Date().toISOString().split('T')[0];
+    const weekEnd = (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + (7 - d.getDay()));
+        return d.toISOString().split('T')[0];
+    })();
+
+    return entries.filter(([, t]) => {
+        if (activeFilters.roles.size > 0 && !activeFilters.roles.has(t.role)) return false;
+
+        if (activeFilters.search) {
+            const s = activeFilters.search.toLowerCase();
+            if (!(t.name || '').toLowerCase().includes(s) &&
+                !(t.description || '').toLowerCase().includes(s)) return false;
+        }
+
+        switch (activeFilters.dueDate) {
+            case 'overdue':
+                if (!t.due_date || t.due_date >= today) return false;
+                break;
+            case 'today':
+                if (t.due_date !== today) return false;
+                break;
+            case 'this-week':
+                if (!t.due_date || t.due_date > weekEnd || t.due_date < today) return false;
+                break;
+            case 'no-date':
+                if (t.due_date) return false;
+                break;
+        }
+
+        return true;
+    });
+}
+
+function updateQuadrantVisibility() {
+    ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
+        const box = document.getElementById(`quadrant${q}`);
+        if (!box) return;
+        const show = activeFilters.quadrants.size === 0 || activeFilters.quadrants.has(q);
+        box.style.display = show ? '' : 'none';
+    });
+}
+
+function updateRoleFilterPills() {
+    const container = document.getElementById('filterRoles');
+    if (!container) return;
+
+    // Derive roles from actual task data first, supplement with cachedRoles for colours
+    const roleSet = new Set();
+    Object.values(tasksData).forEach(t => { if (t.role) roleSet.add(t.role); });
+    cachedRoles.forEach(r => { if (r.name) roleSet.add(r.name); });
+
+    if (roleSet.size === 0) return;
+
+    container.innerHTML = '';
+    roleSet.forEach(roleName => {
+        const btn = document.createElement('button');
+        btn.dataset.role = roleName;
+        btn.textContent = roleName;
+        btn.className = 'filter-role-pill';
+        setPillActive(btn, activeFilters.roles.has(roleName));
+        btn.addEventListener('click', () => {
+            const nowActive = !activeFilters.roles.has(roleName);
+            if (nowActive) activeFilters.roles.add(roleName);
+            else activeFilters.roles.delete(roleName);
+            setPillActive(btn, nowActive);
+            updateClearButton();
+            renderTaskMatrix();
+        });
+        container.appendChild(btn);
+    });
+}
+
+function setPillActive(btn, active) {
+    const color = getTaskRoleColor(btn.dataset.role);
+    if (active) {
+        btn.style.background = color;
+        btn.style.color = '#fff';
+        btn.style.borderColor = color;
+    } else {
+        btn.style.background = '';
+        btn.style.color = '#374151';
+        btn.style.borderColor = '#d1d5db';
+    }
+}
+
+function updateClearButton() {
+    const btn = document.getElementById('clearFiltersBtn');
+    if (!btn) return;
+    const hasFilters = activeFilters.roles.size > 0 ||
+                       activeFilters.quadrants.size > 0 ||
+                       activeFilters.dueDate !== 'all' ||
+                       activeFilters.search !== '';
+    btn.classList.toggle('hidden', !hasFilters);
 }
 
 // ===========================

@@ -1821,3 +1821,52 @@ header h1 {
         min-width: 20px;
     }
 }
+/* ===========================
+   Filter role pills
+   =========================== */
+.filter-role-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.filter-role-pill:hover {
+    background: #f3f4f6;
+}
+
+/* Quadrant filter pills */
+.filter-quadrant-pill {
+    padding: 3px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.filter-quadrant-pill:hover {
+    background: #f3f4f6;
+}
+
+.filter-quadrant-pill.active {
+    background: #1e40af;
+    color: #fff;
+    border-color: #1e40af;
+}
+
+.filter-quadrant-pill[data-quadrant="Q1"].active { background: #dc2626; border-color: #dc2626; }
+.filter-quadrant-pill[data-quadrant="Q2"].active { background: #16a34a; border-color: #16a34a; }
+.filter-quadrant-pill[data-quadrant="Q3"].active { background: #d97706; border-color: #d97706; }
+.filter-quadrant-pill[data-quadrant="Q4"].active { background: #6b7280; border-color: #6b7280; }
