@@ -2,6 +2,8 @@ let isFirebaseReady = false;
 let tasksData = {};
 // Cached roles from localStorage structure template, used for the role dropdown and color lookup
 let cachedRoles = [];
+// Cached projects
+let cachedProjects = {};
 
 const activeFilters = {
     roles: new Set(),
@@ -51,14 +53,17 @@ async function initializeTasks() {
                 loadCachedRoles(); // fallback to localStorage
             }
             tasksData = await window.FirebaseService.loadAllTasks();
+            cachedProjects = await window.FirebaseService.loadAllProjects();
         } catch (e) {
             console.warn('Tasks load from Firebase failed, using localStorage:', e);
             loadCachedRoles();
             tasksData = getLocalTasks();
+            cachedProjects = getLocalProjects();
         }
     } else {
         loadCachedRoles();
         tasksData = getLocalTasks();
+        cachedProjects = getLocalProjects();
     }
     renderTaskMatrix();
     updateRoleFilterPills();
@@ -69,6 +74,11 @@ window.initializeTasks = initializeTasks;
 
 function getLocalTasks() {
     const saved = localStorage.getItem('tasks-global');
+    return saved ? JSON.parse(saved) : {};
+}
+
+function getLocalProjects() {
+    const saved = localStorage.getItem('projects-global');
     return saved ? JSON.parse(saved) : {};
 }
 
@@ -172,13 +182,14 @@ async function openTaskModal(taskId = null) {
     const nameField = document.getElementById('taskModalName');
     const descField = document.getElementById('taskModalDescription');
     const roleSelect = document.getElementById('taskModalRole');
+    const projectSelect = document.getElementById('taskModalProject');
     const quadrantSelect = document.getElementById('taskModalQuadrant');
     const dueDateField = document.getElementById('taskModalDueDate');
     const goalField = document.getElementById('taskModalGoal');
     const dependsField = document.getElementById('taskModalDependsOn');
     const deleteBtn = document.getElementById('deleteTaskBtn');
 
-    // Always refresh roles — by click time auth is resolved so Firebase works
+    // Always refresh roles and projects — by click time auth is resolved so Firebase works
     if (isFirebaseReady && window.FirebaseService && window.FirebaseService.isUserSignedIn()) {
         try {
             const structure = await window.FirebaseService.loadStructureTemplate();
@@ -187,13 +198,17 @@ async function openTaskModal(taskId = null) {
             } else {
                 loadCachedRoles();
             }
+            cachedProjects = await window.FirebaseService.loadAllProjects();
         } catch (e) {
             loadCachedRoles();
+            cachedProjects = getLocalProjects();
         }
     } else {
         loadCachedRoles();
+        cachedProjects = getLocalProjects();
     }
     populateRoleDropdown(roleSelect);
+    populateProjectDropdown(projectSelect);
 
     if (taskId && tasksData[taskId]) {
         const task = tasksData[taskId];
@@ -202,6 +217,7 @@ async function openTaskModal(taskId = null) {
         nameField.value = task.name || '';
         descField.value = task.description || '';
         roleSelect.value = task.role || '';
+        projectSelect.value = task.projectId || '';
         quadrantSelect.value = task.quadrant || 'Q1';
         dueDateField.value = task.due_date || '';
         goalField.value = task.goal || '';
@@ -213,6 +229,7 @@ async function openTaskModal(taskId = null) {
         nameField.value = '';
         descField.value = '';
         roleSelect.selectedIndex = 0;
+        projectSelect.value = '';
         quadrantSelect.value = 'Q1';
         dueDateField.value = '';
         goalField.value = '';
@@ -234,6 +251,29 @@ function populateRoleDropdown(selectEl) {
         opt.textContent = role.name;
         selectEl.appendChild(opt);
     });
+    if (currentVal) selectEl.value = currentVal;
+}
+
+function populateProjectDropdown(selectEl) {
+    const currentVal = selectEl.value;
+    selectEl.innerHTML = '';
+    
+    // Add "No project" option
+    const noProjectOpt = document.createElement('option');
+    noProjectOpt.value = '';
+    noProjectOpt.textContent = 'No project';
+    selectEl.appendChild(noProjectOpt);
+    
+    // Add active projects only
+    Object.entries(cachedProjects).forEach(([projectId, project]) => {
+        if (project.status === 'active') {
+            const opt = document.createElement('option');
+            opt.value = projectId;
+            opt.textContent = project.name;
+            selectEl.appendChild(opt);
+        }
+    });
+    
     if (currentVal) selectEl.value = currentVal;
 }
 
@@ -266,6 +306,7 @@ async function saveTaskFromModal() {
         name,
         description,
         role: document.getElementById('taskModalRole').value,
+        projectId: document.getElementById('taskModalProject').value || null,
         quadrant: document.getElementById('taskModalQuadrant').value,
         due_date: document.getElementById('taskModalDueDate').value || null,
         goal: document.getElementById('taskModalGoal').value.trim() || null,

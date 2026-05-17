@@ -272,6 +272,14 @@ export async function deleteAllFirebaseData() {
             await deleteDoc(doc(db, 'users', currentUser.uid, 'tasks', docSnapshot.id));
         }
 
+        // Delete all projects for this user
+        const projectsRef = collection(db, 'users', currentUser.uid, 'projects');
+        const projectsSnapshot = await getDocs(projectsRef);
+        console.log(`Found ${projectsSnapshot.docs.length} projects to delete`);
+        for (const docSnapshot of projectsSnapshot.docs) {
+            await deleteDoc(doc(db, 'users', currentUser.uid, 'projects', docSnapshot.id));
+        }
+
         console.log('🎉 Firebase data deletion complete!');
         updateSyncStatus('online', 'Reset complete');
         return true;
@@ -514,6 +522,107 @@ export async function updateTask(taskId, updates) {
 
 function getLocalTasks() {
     const saved = localStorage.getItem('tasks-global');
+    return saved ? JSON.parse(saved) : {};
+}
+
+// ===========================
+// Project CRUD functions
+// ===========================
+
+export async function saveProject(projectId, projectData) {
+    const merged = getLocalProjects();
+    merged[projectId] = projectData;
+    localStorage.setItem('projects-global', JSON.stringify(merged));
+
+    if (!db || !currentUser) return;
+
+    try {
+        updateSyncStatus('syncing', 'Saving project...');
+        const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const docRef = doc(db, 'users', currentUser.uid, 'projects', projectId);
+        await setDoc(docRef, { ...projectData, lastModified: new Date() });
+        updateSyncStatus('online', 'Saved');
+        setTimeout(() => updateSyncStatus('online', 'Connected'), 2000);
+    } catch (error) {
+        console.error('Error saving project to Firestore:', error);
+        updateSyncStatus('error', 'Project save failed');
+    }
+}
+
+export async function loadAllProjects() {
+    if (!db || !currentUser) {
+        return getLocalProjects();
+    }
+
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const snapshot = await getDocs(collection(db, 'users', currentUser.uid, 'projects'));
+        const projects = {};
+        snapshot.forEach(docSnap => { projects[docSnap.id] = docSnap.data(); });
+        localStorage.setItem('projects-global', JSON.stringify(projects));
+        return projects;
+    } catch (error) {
+        console.error('Error loading projects from Firestore:', error);
+        return getLocalProjects();
+    }
+}
+
+export async function loadProject(projectId) {
+    if (!db || !currentUser) {
+        const projects = getLocalProjects();
+        return projects[projectId] || null;
+    }
+
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const docRef = doc(db, 'users', currentUser.uid, 'projects', projectId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            return docSnap.data();
+        }
+        return null;
+    } catch (error) {
+        console.error('Error loading project from Firestore:', error);
+        const projects = getLocalProjects();
+        return projects[projectId] || null;
+    }
+}
+
+export async function deleteProject(projectId) {
+    const merged = getLocalProjects();
+    delete merged[projectId];
+    localStorage.setItem('projects-global', JSON.stringify(merged));
+
+    if (!db || !currentUser) return;
+
+    try {
+        const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await deleteDoc(doc(db, 'users', currentUser.uid, 'projects', projectId));
+    } catch (error) {
+        console.error('Error deleting project from Firestore:', error);
+    }
+}
+
+export async function updateProject(projectId, updates) {
+    const merged = getLocalProjects();
+    if (merged[projectId]) {
+        merged[projectId] = { ...merged[projectId], ...updates };
+        localStorage.setItem('projects-global', JSON.stringify(merged));
+    }
+
+    if (!db || !currentUser) return;
+
+    try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(db, 'users', currentUser.uid, 'projects', projectId), { ...updates, lastModified: new Date() });
+    } catch (error) {
+        console.error('Error updating project in Firestore:', error);
+    }
+}
+
+function getLocalProjects() {
+    const saved = localStorage.getItem('projects-global');
     return saved ? JSON.parse(saved) : {};
 }
 
@@ -779,6 +888,11 @@ async function initializeUserDataOnLogin() {
         localStorage.setItem('tasks-global', JSON.stringify(tasksFromFirebase));
         console.log('✅ Tasks synced to localStorage');
 
+        // Load projects
+        const projectsFromFirebase = await loadAllProjects();
+        localStorage.setItem('projects-global', JSON.stringify(projectsFromFirebase));
+        console.log('✅ Projects synced to localStorage');
+
         updateSyncStatus('online', `Signed in as ${currentUser.email}`);
         console.log('🎉 localStorage initialization complete');
 
@@ -805,7 +919,8 @@ function clearLocalStorageOnSignOut() {
     const plannerKeys = keys.filter(key =>
         key.startsWith('weeklyPlanner-') ||
         key.startsWith('weeklyReview-') ||
-        key === 'tasks-global'
+        key === 'tasks-global' ||
+        key === 'projects-global'
     );
     
     plannerKeys.forEach(key => {
@@ -848,5 +963,10 @@ window.FirebaseService = {
     saveTask,
     loadAllTasks,
     deleteTask,
-    updateTask
+    updateTask,
+    saveProject,
+    loadAllProjects,
+    loadProject,
+    deleteProject,
+    updateProject
 };
