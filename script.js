@@ -1391,6 +1391,16 @@ function setupModalEventListeners() {
     document.getElementById('viewHistory').addEventListener('click', function() {
         showReviewHistory();
     });
+
+    // Journal modal close
+    document.getElementById('closeJournalModal').addEventListener('click', function() {
+        document.getElementById('journalModal').classList.add('hidden');
+    });
+    document.getElementById('journalModal').addEventListener('click', function(e) {
+        if (e.target.id === 'journalModal') {
+            document.getElementById('journalModal').classList.add('hidden');
+        }
+    });
 }
 
 async function requestNotificationPermission() {
@@ -1674,6 +1684,7 @@ function openReviewModal() {
 
 function closeReviewModal() {
     document.getElementById('reviewModal').classList.add('hidden');
+    document.getElementById('weeklyReflection').value = '';
 }
 
 // This function has been moved below with enhanced functionality
@@ -1950,6 +1961,7 @@ function generateWeekReview() {
         weekKey: getWeekKey(currentWeekStart),
         weekStart: currentWeekStart.toISOString(),
         timestamp: new Date().toISOString(),
+        reflection: document.getElementById('weeklyReflection').value || '',
         analytics: {
             totalGoals: analytics.totalGoals,
             completedGoals: analytics.completedGoals,
@@ -1992,6 +2004,9 @@ async function checkExistingReview() {
                     <span class="exists">📝 Review saved on ${new Date(existingReview.timestamp).toLocaleDateString()}</span>
                 `;
                 document.getElementById('saveReview').textContent = '🔄 Update Review';
+                if (existingReview.reflection) {
+                    document.getElementById('weeklyReflection').value = existingReview.reflection;
+                }
             } else {
                 statusDiv.innerHTML = '<span class="new">✨ New review ready to save</span>';
                 document.getElementById('saveReview').textContent = '💾 Save Review';
@@ -2005,6 +2020,9 @@ async function checkExistingReview() {
                     <span class="exists">📝 Review saved locally on ${new Date(existingReview.timestamp).toLocaleDateString()}</span>
                 `;
                 document.getElementById('saveReview').textContent = '🔄 Update Review';
+                if (existingReview.reflection) {
+                    document.getElementById('weeklyReflection').value = existingReview.reflection;
+                }
             } else {
                 statusDiv.innerHTML = '<span class="new">✨ New review ready to save</span>';
                 document.getElementById('saveReview').textContent = '💾 Save Review';
@@ -2024,7 +2042,10 @@ async function saveCurrentReview() {
     
     const saveButton = document.getElementById('saveReview');
     const statusDiv = document.getElementById('reviewStatus');
-    
+
+    // Capture latest reflection text before saving
+    currentReviewData.reflection = document.getElementById('weeklyReflection').value || '';
+
     // Update UI to show saving state
     saveButton.disabled = true;
     saveButton.textContent = '💾 Saving...';
@@ -2076,57 +2097,101 @@ async function saveCurrentReview() {
 
 async function showReviewHistory() {
     const statusDiv = document.getElementById('reviewStatus');
-    statusDiv.innerHTML = '<span class="loading">📚 Loading review history...</span>';
-    
+    statusDiv.innerHTML = '<span class="loading">📚 Loading journal...</span>';
+
     try {
         let reviews = [];
-        
+
         if (isFirebaseReady && window.FirebaseService) {
             reviews = await window.FirebaseService.getAllWeeklyReviews();
         } else {
-            // Load from localStorage
             const keys = Object.keys(localStorage);
-            const reviewKeys = keys.filter(key => key.startsWith('weeklyReview-'));
-            
-            reviewKeys.forEach(key => {
-                const data = localStorage.getItem(key);
-                if (data) {
-                    reviews.push(JSON.parse(data));
-                }
+            keys.filter(k => k.startsWith('weeklyReview-')).forEach(k => {
+                const data = localStorage.getItem(k);
+                if (data) reviews.push(JSON.parse(data));
             });
-            
             reviews.sort((a, b) => new Date(b.weekStart) - new Date(a.weekStart));
         }
-        
+
+        statusDiv.innerHTML = '';
+
+        const container = document.getElementById('journalContent');
+        container.innerHTML = '';
+
         if (reviews.length === 0) {
-            statusDiv.innerHTML = '<span class="empty">📝 No saved reviews found</span>';
-            showNotification('📝 No History', 'No saved reviews found. Save this review to start building your history!', 'info');
-            return;
+            container.innerHTML = `
+                <div class="text-center py-16 text-gray-400">
+                    <div class="text-5xl mb-4">📖</div>
+                    <p class="text-lg font-medium">No journal entries yet</p>
+                    <p class="text-sm mt-1">Save a review to start your journal.</p>
+                </div>`;
+        } else {
+            reviews.forEach(review => {
+                container.appendChild(buildJournalEntry(review));
+            });
         }
-        
-        // Display history summary
-        const avgCompletion = Math.round(reviews.reduce((sum, review) => 
-            sum + review.analytics.completionRate, 0) / reviews.length);
-        
-        statusDiv.innerHTML = `
-            <div class="history-summary">
-                <span class="history-stats">📚 ${reviews.length} saved reviews</span>
-                <span class="avg-completion">📈 ${avgCompletion}% average completion</span>
-            </div>
-        `;
-        
-        // Show detailed history in notification
-        const historyText = reviews.slice(0, 5).map(review => {
-            const date = new Date(review.weekStart).toLocaleDateString();
-            return `${date}: ${review.analytics.completionRate}%`;
-        }).join('\n');
-        
-        showNotification('📚 Review History', 
-            `Recent reviews:\n${historyText}${reviews.length > 5 ? '\n...and more' : ''}`, 'info');
-        
+
+        document.getElementById('journalModal').classList.remove('hidden');
+
     } catch (error) {
         console.error('Error loading review history:', error);
-        statusDiv.innerHTML = '<span class="error">❌ Failed to load history</span>';
-        showNotification('❌ Load Failed', 'Could not load review history', 'error');
+        statusDiv.innerHTML = '<span class="error">❌ Failed to load journal</span>';
     }
+}
+
+function buildJournalEntry(review) {
+    const weekStart = new Date(review.weekStart);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    const fmt = d => d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+    const savedAt = review.savedAt
+        ? new Date(review.savedAt.seconds ? review.savedAt.seconds * 1000 : review.savedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+        : '';
+
+    const rate = review.analytics?.completionRate ?? 0;
+    const statusClass = rate >= 80 ? 'excellent' : rate >= 60 ? 'good' : rate >= 40 ? 'average' : 'needs-attention';
+    const statusLabel = rate >= 80 ? 'Excellent' : rate >= 60 ? 'Good' : rate >= 40 ? 'Average' : 'Needs Attention';
+
+    const roleRows = (review.analytics?.rolePerformance ?? []).map(role => {
+        const rc = role.completionRate >= 80 ? 'excellent' : role.completionRate >= 60 ? 'good' : role.completionRate >= 40 ? 'average' : 'needs-attention';
+        return `
+            <div class="journal-role-row">
+                <span class="journal-role-dot" style="background:${role.color}"></span>
+                <span class="journal-role-name">${role.name}</span>
+                <div class="journal-role-bar-track">
+                    <div class="journal-role-bar-fill ${rc}" style="width:${role.completionRate}%"></div>
+                </div>
+                <span class="journal-role-pct">${role.completionRate}%</span>
+            </div>`;
+    }).join('');
+
+    const reflectionHtml = review.reflection
+        ? `<div class="journal-reflection">
+               <p class="journal-reflection-text">${review.reflection.replace(/\n/g, '<br>')}</p>
+           </div>`
+        : `<p class="journal-no-reflection">No reflection written for this week.</p>`;
+
+    const entry = document.createElement('article');
+    entry.className = 'journal-entry';
+    entry.innerHTML = `
+        <div class="journal-entry-header">
+            <div>
+                <h3 class="journal-week-label">Week of ${fmt(weekStart)} – ${fmt(weekEnd)}</h3>
+                ${savedAt ? `<p class="journal-saved-at">Saved ${savedAt}</p>` : ''}
+            </div>
+            <div class="journal-completion-badge ${statusClass}">${rate}% · ${statusLabel}</div>
+        </div>
+
+        <div class="journal-section-label">Reflection</div>
+        ${reflectionHtml}
+
+        <div class="journal-section-label mt-4">Performance</div>
+        <div class="journal-roles">${roleRows}</div>
+
+        <div class="journal-meta">
+            ${review.analytics?.completedGoals ?? 0} of ${review.analytics?.totalGoals ?? 0} goals completed
+        </div>
+    `;
+    return entry;
 }
