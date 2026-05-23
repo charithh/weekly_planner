@@ -1031,5 +1031,6 @@ window.FirebaseService = {
     loadAllProjects,
     loadProject,
     deleteProject,
-    updateProject
+    updateProject,
+    loadRoles
 };
