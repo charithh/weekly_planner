@@ -455,12 +455,12 @@ async function loadWeekData() {
     
     if (weekData) {
         // Load data for this specific week
-        loadPlannerData(weekData);
+        await loadPlannerData(weekData);
     } else {
         console.log('No week data found, loading structure template...');
         // No data for this week, check if we have a structure template
         let structureData = null;
-        
+
         // Try localStorage first for structure
         const savedStructure = localStorage.getItem('weeklyPlanner-structure');
         if (savedStructure) {
@@ -476,13 +476,13 @@ async function loadWeekData() {
                 console.warn('❌ Firebase structure load failed:', error);
             }
         }
-        
+
         if (structureData) {
             // Load structure with empty goals
             console.log('📋 Loading structure template for new week');
             console.log('📋 Template roles:', structureData.roles.map(r => r.name));
             console.log('📋 Template goal columns:', structureData.goalColumnsCount);
-            loadPlannerData(structureData);
+            await loadPlannerData(structureData);
         } else {
             console.log('No structure template found, using defaults');
         }
@@ -603,7 +603,7 @@ function removeGoalColumnFromStructure() {
     }
 }
 
-function loadPlannerData(plannerData) {
+async function loadPlannerData(plannerData) {
     console.log('🔄 Loading planner data:', JSON.stringify(plannerData, null, 2));
     try {
         // First, adjust the table structure if goal column count differs
@@ -676,7 +676,7 @@ function loadPlannerData(plannerData) {
         } else {
             console.log('⚠️ No roles found in saved data, using default structure');
             // If no saved roles, create a basic default structure
-            createDefaultRoleStructure(savedGoalCount);
+            await createDefaultRoleStructure(savedGoalCount);
         }
         
         // Load sharpen the saw data
@@ -716,31 +716,51 @@ function loadPlannerData(plannerData) {
     }
 }
 
-function createDefaultRoleStructure(goalColumnsCount) {
+async function createDefaultRoleStructure(goalColumnsCount) {
     console.log('🔄 Creating default role structure with', goalColumnsCount, 'goal columns');
-    
-    const defaultRoles = [
+
+    // Try to fetch roles from Firebase, fallback to hardcoded defaults
+    let defaultRoles = [
         { name: 'Individual', color: '#a8c8ec' },
         { name: 'Husband', color: '#b8d4b8' },
         { name: 'Father', color: '#c8a8d8' },
-        { name: 'Engineering Manager', color: '#f4d1a4' }
+        { name: 'Engineering Leader', color: '#d4b8e8' },
+        { name: 'Founder', color: '#e8d4b8' }
     ];
-    
+
+    try {
+        if (window.db && window.currentUser) {
+            const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+            const rolesRef = doc(window.db, 'users', window.currentUser.uid, 'roles', 'config');
+            const rolesSnap = await getDoc(rolesRef);
+
+            if (rolesSnap.exists()) {
+                const firebaseRoles = rolesSnap.data().roles;
+                if (firebaseRoles && Array.isArray(firebaseRoles)) {
+                    defaultRoles = firebaseRoles;
+                    console.log('✅ Loaded roles from Firebase:', defaultRoles.map(r => r.name).join(', '));
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Failed to load roles from Firebase, using defaults:', error);
+    }
+
     const tbody = document.getElementById('plannerBody');
-    
+
     defaultRoles.forEach(roleData => {
         const newRow = document.createElement('tr');
         newRow.className = 'role-row';
         newRow.setAttribute('data-role', roleData.name.toLowerCase().replace(/\s+/g, '-'));
-        
+
         // Create role cell
         const roleCell = document.createElement('td');
         roleCell.className = 'role-cell';
         roleCell.textContent = roleData.name;
-        roleCell.style.backgroundColor = roleData.color;
+        roleCell.style.backgroundColor = roleData.color || '#cccccc';
         setupRoleEditingForCell(roleCell);
         newRow.appendChild(roleCell);
-        
+
         // Create empty goal cells
         for (let i = 0; i < goalColumnsCount; i++) {
             const goalCell = document.createElement('td');
@@ -750,7 +770,7 @@ function createDefaultRoleStructure(goalColumnsCount) {
             setupGoalCellListeners(goalCell);
             newRow.appendChild(goalCell);
         }
-        
+
         tbody.appendChild(newRow);
     });
 }

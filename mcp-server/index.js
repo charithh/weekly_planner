@@ -35,6 +35,10 @@ function tasksRef() {
     return db.collection('users').doc(userId).collection('tasks');
 }
 
+function rolesRef() {
+    return db.collection('users').doc(userId).collection('roles').doc('config');
+}
+
 function serializeDoc(doc) {
     const data = doc.data();
     // Convert Firestore Timestamps to ISO strings for readable output
@@ -111,6 +115,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
                     id: { type: 'string', description: 'Task ID to delete (required)' },
                 },
                 required: ['id'],
+            },
+        },
+        {
+            name: 'get_roles',
+            description: "Fetch the user's role definitions from Firebase",
+            inputSchema: {
+                type: 'object',
+                properties: {},
             },
         },
     ],
@@ -249,6 +261,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     content: [{
                         type: 'text',
                         text: `Task deleted: "${taskName}" (${id})`,
+                    }],
+                };
+            }
+
+            case 'get_roles': {
+                const rolesDoc = await rolesRef().get();
+                if (!rolesDoc.exists) {
+                    return {
+                        content: [{
+                            type: 'text',
+                            text: 'No roles defined. Please initialize roles by calling POST /api/roles/init from the Cloud Function.',
+                        }],
+                        isError: true,
+                    };
+                }
+
+                const { roles } = rolesDoc.data();
+                const rolesText = roles.map(r => `- ${r.name}: ${r.description}`).join('\n');
+
+                return {
+                    content: [{
+                        type: 'text',
+                        text: `User roles (${roles.length} defined):\n\n${rolesText}`,
                     }],
                 };
             }

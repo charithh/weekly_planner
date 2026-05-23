@@ -24,6 +24,14 @@ const ALLOWED_FIELDS = new Set([
 
 const VALID_QUADRANTS = new Set(['Q1', 'Q2', 'Q3', 'Q4']);
 
+const DEFAULT_ROLES = [
+    { name: 'Individual', color: '#a8c8ec', description: 'Self — health, wealth, relationships, spiritual' },
+    { name: 'Husband', color: '#b8d4b8', description: 'Partnership, shared life, attention' },
+    { name: 'Father', color: '#c8a8d8', description: "Kids' wellbeing, relationship, presence" },
+    { name: 'Engineering Leader', color: '#d4b8e8', description: 'Team health, delivery, strategic direction' },
+    { name: 'Founder', color: '#e8d4b8', description: 'Long-term venture work' }
+];
+
 // ===========================
 // Auth middleware
 // ===========================
@@ -187,6 +195,33 @@ app.delete('/api/tasks/:id', async (req, res) => {
     } catch (err) {
         console.error(`DELETE /api/tasks/${id} error:`, err);
         return res.status(500).json({ error: 'Failed to delete task' });
+    }
+});
+
+// POST /api/roles/init — initialize default roles for user
+app.post('/api/roles/init', async (req, res) => {
+    try {
+        const rolesRef = db
+            .collection('users').doc(req.userId)
+            .collection('roles').doc('config');
+
+        const existing = await rolesRef.get();
+        if (existing.exists) {
+            return res.status(200).json({ message: 'Roles already initialized', roles: existing.data().roles });
+        }
+
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        const rolesData = {
+            roles: DEFAULT_ROLES,
+            lastModified: now,
+            version: '1.0'
+        };
+
+        await rolesRef.set(rolesData);
+        return res.status(201).json({ message: 'Roles initialized', roles: DEFAULT_ROLES });
+    } catch (err) {
+        console.error('POST /api/roles/init error:', err);
+        return res.status(500).json({ error: 'Failed to initialize roles' });
     }
 });
 

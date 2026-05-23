@@ -627,6 +627,43 @@ function getLocalProjects() {
 }
 
 
+// Role initialization
+const DEFAULT_ROLES = [
+    { name: 'Individual', color: '#a8c8ec', description: 'Self — health, wealth, relationships, spiritual' },
+    { name: 'Husband', color: '#b8d4b8', description: 'Partnership, shared life, attention' },
+    { name: 'Father', color: '#c8a8d8', description: "Kids' wellbeing, relationship, presence" },
+    { name: 'Engineering Leader', color: '#d4b8e8', description: 'Team health, delivery, strategic direction' },
+    { name: 'Founder', color: '#e8d4b8', description: 'Long-term venture work' }
+];
+
+export async function initializeRolesIfNeeded() {
+    if (!currentUser || !db) return;
+
+    try {
+        const { doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        const rolesRef = doc(db, 'users', currentUser.uid, 'roles', 'config');
+        const rolesSnap = await getDoc(rolesRef);
+
+        if (!rolesSnap.exists()) {
+            // Roles don't exist, initialize them directly in Firestore
+            console.log('🔄 Initializing roles for new user...');
+            try {
+                await setDoc(rolesRef, {
+                    roles: DEFAULT_ROLES,
+                    lastModified: new Date(),
+                    version: '1.0'
+                });
+                console.log('✅ Roles initialized in Firestore:', DEFAULT_ROLES.map(r => r.name).join(', '));
+            } catch (error) {
+                console.warn('⚠️ Error initializing roles in Firestore:', error);
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Error checking roles:', error);
+    }
+}
+
 // Authentication functions
 function setupAuthStateListener() {
     if (!auth) return;
@@ -843,11 +880,14 @@ function showSignInModal() {
 // Initialize localStorage with user's Firebase data on login
 async function initializeUserDataOnLogin() {
     if (!currentUser || !db) return;
-    
+
     console.log('🔄 Initializing localStorage with user Firebase data...');
     updateSyncStatus('syncing', 'Syncing your data...');
-    
+
     try {
+        // Initialize roles if needed
+        await initializeRolesIfNeeded();
+
         // Load and sync structure template
         const structureData = await loadStructureTemplate();
         if (structureData) {
