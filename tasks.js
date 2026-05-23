@@ -493,24 +493,23 @@ function updateRoleFilterPills() {
     const container = document.getElementById('filterRoles');
     if (!container) return;
 
-    // Derive roles from actual task data first, supplement with cachedRoles for colours
-    const roleSet = new Set();
-    Object.values(tasksData).forEach(t => { if (t.role) roleSet.add(t.role); });
-    cachedRoles.forEach(r => { if (r.name) roleSet.add(r.name); });
+    // Use only roles from cachedRoles (centralized list), not from task data
+    // This ensures only valid, current roles are shown as filter options
+    const roles = cachedRoles.filter(r => r && r.name);
 
-    if (roleSet.size === 0) return;
+    if (roles.length === 0) return;
 
     container.innerHTML = '';
-    roleSet.forEach(roleName => {
+    roles.forEach(role => {
         const btn = document.createElement('button');
-        btn.dataset.role = roleName;
-        btn.textContent = roleName;
+        btn.dataset.role = role.name;
+        btn.textContent = role.name;
         btn.className = 'filter-role-pill';
-        setPillActive(btn, activeFilters.roles.has(roleName));
+        setPillActive(btn, activeFilters.roles.has(role.name));
         btn.addEventListener('click', () => {
-            const nowActive = !activeFilters.roles.has(roleName);
-            if (nowActive) activeFilters.roles.add(roleName);
-            else activeFilters.roles.delete(roleName);
+            const nowActive = !activeFilters.roles.has(role.name);
+            if (nowActive) activeFilters.roles.add(role.name);
+            else activeFilters.roles.delete(role.name);
             setPillActive(btn, nowActive);
             updateClearButton();
             renderTaskMatrix();
