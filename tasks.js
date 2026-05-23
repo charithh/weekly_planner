@@ -45,13 +45,8 @@ async function initializeFirebase() {
 async function initializeTasks() {
     if (isFirebaseReady && window.FirebaseService) {
         try {
-            // Load roles from Firebase structure template directly
-            const structure = await window.FirebaseService.loadStructureTemplate();
-            if (structure && structure.roles && structure.roles.length > 0) {
-                cachedRoles = structure.roles;
-            } else {
-                loadCachedRoles(); // fallback to localStorage
-            }
+            // Load roles from centralized Firebase location
+            cachedRoles = await window.FirebaseService.loadRoles();
             tasksData = await window.FirebaseService.loadAllTasks();
             cachedProjects = await window.FirebaseService.loadAllProjects();
         } catch (e) {

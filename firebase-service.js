@@ -664,6 +664,29 @@ export async function initializeRolesIfNeeded() {
     }
 }
 
+export async function loadRoles() {
+    if (!currentUser || !db) {
+        return DEFAULT_ROLES;
+    }
+
+    try {
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+        const rolesRef = doc(db, 'users', currentUser.uid, 'roles', 'config');
+        const rolesSnap = await getDoc(rolesRef);
+
+        if (rolesSnap.exists()) {
+            const data = rolesSnap.data();
+            return data.roles || DEFAULT_ROLES;
+        } else {
+            return DEFAULT_ROLES;
+        }
+    } catch (error) {
+        console.warn('⚠️ Error loading roles from Firebase:', error);
+        return DEFAULT_ROLES;
+    }
+}
+
 // Authentication functions
 function setupAuthStateListener() {
     if (!auth) return;
