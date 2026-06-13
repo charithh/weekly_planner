@@ -2010,3 +2010,57 @@ header h1 {
     color: #9ca3af;
     text-align: right;
 }
+
+/* ── Weekly Progress Snapshot ────────────────────────────────── */
+
+.snapshot-ring-wrap {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    flex-shrink: 0;
+}
+
+.snapshot-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.snapshot-ring-percent {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+}
+
+.snapshot-ring-caption {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+.snapshot-roles-wrap {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.snapshot-attention {
+    margin-top: 1rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 8px;
+    background: #fff7ed;
+    border-left: 4px solid #f59e0b;
+    font-size: 0.8rem;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}

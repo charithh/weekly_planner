@@ -5,6 +5,8 @@ window.currentWeekStart = null;
 let isFirebaseReady = false;
 let notificationPermission = false;
 let reminderIntervals = [];
+let snapshotRingChart = null;
+let snapshotRolesChart = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Initialize current week to today's week
@@ -315,7 +317,10 @@ function getWeekKey(weekStart) {
 
 async function saveToFirestore() {
     console.log('Saving data - Firebase ready:', isFirebaseReady);
-    
+
+    // Refresh the progress snapshot immediately so edits feel instant
+    updateProgressSnapshot();
+
     const plannerData = {
         roles: [],
         sharpenData: [],
@@ -487,6 +492,8 @@ async function loadWeekData() {
             console.log('No structure template found, using defaults');
         }
     }
+
+    updateProgressSnapshot();
 }
 
 function clearCurrentWeekData() {
@@ -2010,6 +2017,119 @@ function getPerformanceStatus(completionRate) {
     return 'needs-attention';
 }
 
+const SNAPSHOT_RING_COLORS = {
+    excellent: '#22c55e',
+    good: '#60a5fa',
+    average: '#facc15',
+    'needs-attention': '#f87171'
+};
+
+const SNAPSHOT_STATUS_LABELS = {
+    excellent: '🏆 Excellent',
+    good: '👍 Good',
+    average: '⚡ Average',
+    'needs-attention': '🎯 Needs Attention'
+};
+
+function updateProgressSnapshot() {
+    const ringCanvas = document.getElementById('snapshotRingChart');
+    if (!ringCanvas || typeof Chart === 'undefined') return;
+
+    const analytics = analyzeWeekData();
+    const overallRate = analytics.totalGoals > 0
+        ? Math.round((analytics.completedGoals / analytics.totalGoals) * 100)
+        : 0;
+    const status = getPerformanceStatus(overallRate);
+    const ringColor = analytics.totalGoals > 0 ? SNAPSHOT_RING_COLORS[status] : '#e5e7eb';
+
+    // Doughnut: overall completion ring
+    const ringData = [overallRate, Math.max(0, 100 - overallRate)];
+    const ringColors = [ringColor, '#e5e7eb'];
+
+    if (!snapshotRingChart) {
+        snapshotRingChart = new Chart(ringCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'Remaining'],
+                datasets: [{ data: ringData, backgroundColor: ringColors, borderWidth: 0, cutout: '72%' }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                animation: { duration: 400 },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
+    } else {
+        snapshotRingChart.data.datasets[0].data = ringData;
+        snapshotRingChart.data.datasets[0].backgroundColor = ringColors;
+        snapshotRingChart.update();
+    }
+
+    document.getElementById('snapshotPercent').textContent = `${overallRate}%`;
+
+    // Summary text + status badge
+    const summaryText = document.getElementById('snapshotSummaryText');
+    const badge = document.getElementById('snapshotStatusBadge');
+    if (analytics.totalGoals > 0) {
+        summaryText.textContent = `${analytics.completedGoals} of ${analytics.totalGoals} goals completed`;
+        badge.textContent = SNAPSHOT_STATUS_LABELS[status];
+        badge.className = `journal-completion-badge ${status}`;
+    } else {
+        summaryText.textContent = 'No goals set for this week yet — add some to see your progress.';
+        badge.classList.add('hidden');
+    }
+
+    // Horizontal bar chart: per-role breakdown
+    const rolesCanvas = document.getElementById('snapshotRolesChart');
+    const labels = analytics.roles.map(role => role.name);
+    const data = analytics.roles.map(role => role.completionRate);
+    const colors = analytics.roles.map(role => SNAPSHOT_RING_COLORS[getPerformanceStatus(role.completionRate)]);
+
+    const wrap = rolesCanvas.parentElement;
+    wrap.style.height = `${Math.max(analytics.roles.length * 34, 60)}px`;
+
+    if (!snapshotRolesChart) {
+        snapshotRolesChart = new Chart(rolesCanvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ data, backgroundColor: colors, borderRadius: 4, barThickness: 14 }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 },
+                scales: {
+                    x: { min: 0, max: 100, ticks: { callback: v => `${v}%`, font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `${ctx.parsed.x}% complete` } }
+                }
+            }
+        });
+    } else {
+        snapshotRolesChart.data.labels = labels;
+        snapshotRolesChart.data.datasets[0].data = data;
+        snapshotRolesChart.data.datasets[0].backgroundColor = colors;
+        snapshotRolesChart.update();
+    }
+
+    // "Needs attention" callout for roles under 50% with goals set
+    const attentionBox = document.getElementById('snapshotAttention');
+    const attentionRoles = analytics.roles.filter(role => role.completionRate < 50);
+    if (attentionRoles.length > 0) {
+        const names = attentionRoles.map(role => role.name).join(', ');
+        attentionBox.innerHTML = `<span>⚠️</span><span>Needs attention: <strong>${names}</strong> — below 50% completion this week.</span>`;
+        attentionBox.classList.remove('hidden');
+    } else {
+        attentionBox.classList.add('hidden');
+    }
+}
+
 async function checkExistingReview() {
     if (!currentReviewData) return;
     
@@ -2151,6 +2271,8 @@ async function showReviewHistory() {
             });
         }
 
+        // Hide the review modal so it doesn't stack on top of (and hide) the journal modal
+        document.getElementById('reviewModal').classList.add('hidden');
         document.getElementById('journalModal').classList.remove('hidden');
 
     } catch (error) {
