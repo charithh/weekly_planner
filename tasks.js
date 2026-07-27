@@ -9,7 +9,8 @@ const activeFilters = {
     roles: new Set(),
     quadrants: new Set(),
     dueDate: 'all',
-    search: ''
+    search: '',
+    project: ''
 };
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -62,6 +63,7 @@ async function initializeTasks() {
     }
     renderTaskMatrix();
     updateRoleFilterPills();
+    updateProjectFilterDropdown();
 }
 
 // Expose so firebase-service.js can call it after sign-in
@@ -146,14 +148,23 @@ function setupTaskEventListeners() {
         renderTaskMatrix();
     });
 
+    // Project dropdown
+    document.getElementById('filterProject').addEventListener('change', function() {
+        activeFilters.project = this.value;
+        updateClearButton();
+        renderTaskMatrix();
+    });
+
     // Clear all filters
     document.getElementById('clearFiltersBtn').addEventListener('click', () => {
         activeFilters.roles.clear();
         activeFilters.quadrants.clear();
         activeFilters.dueDate = 'all';
         activeFilters.search = '';
+        activeFilters.project = '';
         document.getElementById('filterSearch').value = '';
         document.getElementById('filterDueDate').value = 'all';
+        document.getElementById('filterProject').value = '';
         document.querySelectorAll('.filter-role-pill').forEach(btn => setPillActive(btn, false));
         document.querySelectorAll('.filter-quadrant-pill').forEach(btn => btn.classList.remove('active'));
         updateClearButton();
@@ -455,6 +466,10 @@ function applyFilters(entries) {
     return entries.filter(([, t]) => {
         if (activeFilters.roles.size > 0 && !activeFilters.roles.has(t.role)) return false;
 
+        if (activeFilters.project) {
+            if ((t.projectId || '') !== activeFilters.project) return false;
+        }
+
         if (activeFilters.search) {
             const s = activeFilters.search.toLowerCase();
             if (!(t.name || '').toLowerCase().includes(s) &&
@@ -531,13 +546,30 @@ function setPillActive(btn, active) {
     }
 }
 
+function updateProjectFilterDropdown() {
+    const select = document.getElementById('filterProject');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">All projects</option>';
+    Object.entries(cachedProjects).forEach(([id, project]) => {
+        if (project.status === 'active') {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = project.name;
+            select.appendChild(opt);
+        }
+    });
+    if (current) select.value = current;
+}
+
 function updateClearButton() {
     const btn = document.getElementById('clearFiltersBtn');
     if (!btn) return;
     const hasFilters = activeFilters.roles.size > 0 ||
                        activeFilters.quadrants.size > 0 ||
                        activeFilters.dueDate !== 'all' ||
-                       activeFilters.search !== '';
+                       activeFilters.search !== '' ||
+                       activeFilters.project !== '';
     btn.classList.toggle('hidden', !hasFilters);
 }
 
